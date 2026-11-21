@@ -78,9 +78,9 @@ jobs:
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         with:
           releaseDirectory: androidApp/build/outputs/apk/release
-          signingKeyBase64: ${{ secrets.SIGNING_KEY }}
-          alias: ${{ secrets.ALIAS }}
-          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
+          signingKeyBase64: ${{ secrets.SIGNING_KEY || secrets.BASE_64_SIGNING_KEY || secrets.KEYSTORE_BASE64 }}
+          alias: ${{ secrets.ALIAS || secrets.KEY_ALIAS }}
+          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD || secrets.KEYSTORE_PASSWORD }}
           keyPassword: ${{ secrets.KEY_PASSWORD }}
           zipAlign: true
         env:
@@ -150,9 +150,9 @@ jobs:
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         with:
           releaseDirectory: vivoAndroidApp/build/outputs/apk/release
-          signingKeyBase64: ${{ secrets.SIGNING_KEY }}
-          alias: ${{ secrets.ALIAS }}
-          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
+          signingKeyBase64: ${{ secrets.SIGNING_KEY || secrets.BASE_64_SIGNING_KEY || secrets.KEYSTORE_BASE64 }}
+          alias: ${{ secrets.ALIAS || secrets.KEY_ALIAS }}
+          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD || secrets.KEYSTORE_PASSWORD }}
           keyPassword: ${{ secrets.KEY_PASSWORD }}
           zipAlign: true
         env:
