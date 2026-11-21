@@ -66,8 +66,8 @@ jobs:
 
       - name: Build full release APK
         env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.ALIAS }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD || secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ALIAS || secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./build_and_sign_apk.sh --release --full
 
@@ -128,8 +128,8 @@ jobs:
 
       - name: Build vivo release APK
         env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.ALIAS }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD || secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ALIAS || secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./build_and_sign_apk.sh --release --full --vivo
 
@@ -170,8 +170,8 @@ jobs:
 
       - name: Build foss release APK
         env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.ALIAS }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD || secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ALIAS || secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./build_and_sign_apk.sh --release --foss
 
