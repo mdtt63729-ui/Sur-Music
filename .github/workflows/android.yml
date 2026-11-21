@@ -72,6 +72,21 @@ jobs:
           echo "BUILD_TOOL_VERSION=$BUILD_TOOL_VERSION" >> $GITHUB_ENV
           echo Last build tool version is: $BUILD_TOOL_VERSION
 
+      # Says which signing secret arrived and how long it is - never the value. apksigner exits 2
+      # when the keystore opens but a password or the alias does not match, and this says which of
+      # the four inputs actually reached the runner.
+      - name: Check signing inputs
+        env:
+          SK: ${{ secrets.SIGNING_KEY || secrets.BASE_64_SIGNING_KEY || secrets.KEYSTORE_BASE64 }}
+          AL: ${{ secrets.ALIAS || secrets.KEY_ALIAS }}
+          KP: ${{ secrets.KEY_STORE_PASSWORD || secrets.KEYSTORE_PASSWORD }}
+          K2: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          echo "keystore b64 length: ${#SK}"
+          echo "alias length: ${#AL}"
+          echo "store password length: ${#KP}"
+          echo "key password length: ${#K2}"
+
       # A pull request from a fork gets no secrets, so it only checks that the APK builds.
       - uses: kevin-david/zipalign-sign-android-release@v2
         id: sign_app
