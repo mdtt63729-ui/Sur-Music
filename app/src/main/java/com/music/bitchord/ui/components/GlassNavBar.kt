@@ -118,6 +118,13 @@ fun GlassNavBar(
     /** Called when the user taps the currently active tab (scroll-to-top). */
     onActiveTabTap: () -> Unit = {},
     autoMixArtwork: (@Composable (String?, Modifier) -> Unit)? = null,
+    /**
+     * The Spotify-style split: Search in its own circle beside the pill, in the
+     * expanded state as well as the collapsed one. False folds Search into the
+     * pill when expanded, which is the bar the app ships with. The material is
+     * the same either way — this picks the shape only.
+     */
+    legacy: Boolean = false,
 ) {
     // Held for the same reason [tabs] is. The glass factory below closes over
     // this shape, and a fresh RoundedCornerShape each pass means a fresh factory
@@ -224,10 +231,11 @@ fun GlassNavBar(
         sizes = FloatingTabBarDefaults.sizes(
             tabBarContentPadding = PaddingValues(PILL_INSET),
             tabExpandedContentPadding = PaddingValues(vertical = TAB_VERTICAL_PADDING),
-            // The gap the plain bar leaves before its Search circle, so the two
-            // bars put the button in the same place. Only the gap beside the
-            // standalone tab moves; the accessory keeps its own spacing above.
-            standaloneSpacing = SEARCH_BUTTON_GAP,
+            // Split, the gap the plain bar leaves before its Search circle, so
+            // the two bars put the button in the same place. Only the gap beside
+            // the standalone tab moves; the accessory keeps its own spacing
+            // above it.
+            standaloneSpacing = if (legacy) SEARCH_BUTTON_GAP else DEFAULT_COMPONENT_SPACING,
             // Collapsed, Apple's row is narrower and more spaced: 48pt circles
             // 28pt in from the screen's sides, 14pt apart, centred on the line
             // the expanded bar's middle runs along.
@@ -243,11 +251,12 @@ fun GlassNavBar(
         contentKey = remember(selectedIndex, tabs, contentColor) {
             listOf(selectedIndex, tabs, contentColor)
         },
-        // Search is never a pill tab: it is the circle at the end of the row in
-        // both states, the way the Spotify bar splits them. Merged, it would
-        // become the pill's fifth tab and the four browse tabs would each lose a
-        // fifth of their width to it.
-        mergeStandaloneWhenExpanded = false,
+        // Legacy, Search is never a pill tab: it is the circle at the end of the
+        // row in both states, the way the Spotify bar splits them. Merged, it
+        // would become the pill's fifth tab and the four browse tabs would each
+        // lose a fifth of their width to it. Default keeps the app's own bar,
+        // which folds Search into the pill once there is room for it.
+        mergeStandaloneWhenExpanded = !legacy,
     ) {
         tabs.forEachIndexed { index, tab ->
             val isSelected = index == selectedIndex

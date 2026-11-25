@@ -139,6 +139,17 @@ enum class ThemeMode(val label: String) {
 enum class AppFont { DEFAULT, LEGACY }
 
 /**
+ * Which bottom navigation bar the app draws.
+ *
+ * [DEFAULT] is the bar the app ships with: one pill holding every tab, with
+ * Search folded into it. [LEGACY] is the bar ported from the Spotify client —
+ * a capsule of the browse tabs with Search in its own circle beside it. Both
+ * are drawn in whichever material [AppSettings.liquidGlass] asks for, so the
+ * choice of shape and the choice of glass stay independent.
+ */
+enum class NavBarStyle { DEFAULT, LEGACY }
+
+/**
  * Which of the equaliser's two tabs is driving the sound.
  *
  * One at a time rather than both at once: they are two ways of describing the
@@ -445,6 +456,7 @@ object AppSettings {
     val playbackSpeed = MutableStateFlow(1.0f)
     val themeMode = MutableStateFlow(ThemeMode.DARK)
     val appFont = MutableStateFlow(AppFont.DEFAULT)
+    val navBarStyle = MutableStateFlow(NavBarStyle.DEFAULT)
 
     /** Keep playing similar music once the queue runs out. */
     val autoplay = MutableStateFlow(true)
@@ -1104,6 +1116,11 @@ object AppSettings {
         appFont.value = runCatching {
             AppFont.valueOf(prefs.getString(KEY_APP_FONT, null) ?: AppFont.DEFAULT.name)
         }.getOrDefault(AppFont.DEFAULT)
+        navBarStyle.value = runCatching {
+            NavBarStyle.valueOf(
+                prefs.getString(KEY_NAV_BAR_STYLE, null) ?: NavBarStyle.DEFAULT.name,
+            )
+        }.getOrDefault(NavBarStyle.DEFAULT)
         autoplay.value = prefs.getBoolean(KEY_AUTOPLAY, true)
         shuffleEnabled.value = prefs.getBoolean(KEY_SHUFFLE_ENABLED, false)
         repeatMode.value = prefs.getInt(KEY_REPEAT_MODE, Player.REPEAT_MODE_OFF)
@@ -1553,6 +1570,11 @@ object AppSettings {
     fun setAppFont(value: AppFont) {
         appFont.value = value
         prefs.edit().putString(KEY_APP_FONT, value.name).apply()
+    }
+
+    fun setNavBarStyle(value: NavBarStyle) {
+        navBarStyle.value = value
+        prefs.edit().putString(KEY_NAV_BAR_STYLE, value.name).apply()
     }
 
     fun setReduceAnimation(value: Boolean) {
@@ -2451,6 +2473,7 @@ object AppSettings {
     private const val KEY_SPEED = "playback_speed"
     private const val KEY_THEME = "theme_mode"
     private const val KEY_APP_FONT = "app_font"
+    private const val KEY_NAV_BAR_STYLE = "nav_bar_style"
     private const val KEY_AUTOPLAY = "autoplay"
     private const val KEY_SHUFFLE_ENABLED = "shuffle_enabled"
     private const val KEY_REPEAT_MODE = "repeat_mode"

@@ -127,6 +127,14 @@ internal val TAB_VERTICAL_PADDING = 6.5.dp
 internal val SEARCH_BUTTON_SIZE = 56.dp
 internal val SEARCH_BUTTON_GAP = 12.dp
 
+/**
+ * The spacing [FloatingTabBarDefaults.sizes] gives between the components of a
+ * bar when nobody asks for another: the gap between the now playing pill and
+ * the tabs, and the one [GlassNavBar] keeps beside its standalone tab unless it
+ * is drawing the split shape.
+ */
+internal val DEFAULT_COMPONENT_SPACING = 8.dp
+
 /** The gap between a tab's glyph and its label, in both bars. */
 internal val TAB_ICON_LABEL_GAP = 1.dp
 
@@ -193,34 +201,132 @@ fun FloatingBottomBar(
     modifier: Modifier = Modifier,
     /** Called when the user taps the currently active tab (scroll-to-top). */
     onActiveTabTap: () -> Unit = {},
+    /**
+     * Draw the Spotify-style bar: a capsule of the browse tabs with Search in
+     * its own circle beside it. False is the bar the app ships with — one pill
+     * holding every tab. The material is the same either way; this picks the
+     * shape only, so it stays independent of the glass switch.
+     */
+    legacy: Boolean = false,
 ) {
     val pillShape = RoundedCornerShape(percent = 50)
     val container = MaterialTheme.colorScheme.surface
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
+    val useGlass = LocalLiquidGlassEnabled.current && isGlassSupported()
+    val haptics = rememberHaptics()
+
+    // Split, Search is never a pill tab: the capsule divides its width between
+    // the browse tabs and Search rides beside it, so adding it never squeezes
+    // the other four. Whole, every tab is in the one pill, as the app shipped.
+    val capsuleTabs = if (legacy && tabs.size > 1) tabs.dropLast(1) else tabs
+    val searchTab = if (legacy) tabs.lastOrNull() else null
+    val searchIndex = tabs.lastIndex
+    // -1 while Search is the selection: nothing inside the capsule is lit then.
+    val capsuleSelected = if (selectedIndex <= capsuleTabs.lastIndex) selectedIndex else -1
+
+    // One material, two surfaces: the capsule and the Search circle are cut
+    // from the same glass, so the row reads as one bar with a gap in it.
+    val surface: @Composable () -> Modifier = {
+        when {
+            reduceDynamicBlur -> Modifier.background(container)
+            useGlass -> Modifier.liquidGlass(shape = pillShape)
+            else ->
+                Modifier.optimizedHazeEffect(
+                    state = hazeState,
+                    style = HazeMaterials.regular(container),
+                )
+        }
+    }
+
+    val barModifier =
+        modifier
+            .windowInsetsPadding(floatingBarInsets)
+            .padding(horizontal = NAV_BAR_GUTTER)
+            .padding(bottom = NAV_BAR_LIFT)
+            .fillMaxWidth()
+
+    if (searchTab != null) {
+        Row(
+            modifier = barModifier,
+            verticalAlignment = Alignment.CenterVertically,
+            // The capsule takes what the Search circle leaves; the pair is
+            // centred as one cluster rather than the gap wedging itself into
+            // the middle.
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            NavCapsule(
+                tabs = capsuleTabs,
+                selectedIndex = capsuleSelected,
+                surface = surface,
+                onTabSelected = onTabSelected,
+                onActiveTabTap = onActiveTabTap,
+                modifier = Modifier.weight(1f),
+            )
+            Spacer(Modifier.width(SEARCH_BUTTON_GAP))
+            SearchButton(
+                tab = searchTab,
+                selected = selectedIndex == searchIndex,
+                glassTint = if (useGlass) glassContentColor() else null,
+                onClick = {
+                    if (selectedIndex == searchIndex) {
+                        onActiveTabTap()
+                    } else {
+                        haptics.play(Haptic.Select)
+                    }
+                    onTabSelected(searchIndex)
+                },
+                modifier = Modifier.size(SEARCH_BUTTON_SIZE),
+                surface = surface,
+            )
+        }
+    } else {
+        NavCapsule(
+            tabs = capsuleTabs,
+            selectedIndex = capsuleSelected,
+            surface = surface,
+            onTabSelected = onTabSelected,
+            onActiveTabTap = onActiveTabTap,
+            modifier = barModifier,
+        )
+    }
+}
+
+/**
+ * The pill of tabs, in either shape: the whole bar the app ships with, or the
+ * capsule the Spotify-style bar splits off beside its Search circle.
+ *
+ * It is one composable rather than two because the two shapes differ only in
+ * what is inside the pill and how wide it is — the material, the sliding
+ * indicator, the drag across it and the glyphs are the same, and two copies of
+ * that would drift apart the first time either was touched.
+ *
+ * [selectedIndex] indexes [tabs]; -1 means the selection is outside them (Search,
+ * in the split bar), and then nothing is lit and no indicator is drawn.
+ */
+@Composable
+private fun NavCapsule(
+    tabs: List<BottomTab>,
+    selectedIndex: Int,
+    surface: @Composable () -> Modifier,
+    onTabSelected: (Int) -> Unit,
+    onActiveTabTap: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val pillShape = RoundedCornerShape(percent = 50)
     val useGlass = LocalLiquidGlassEnabled.current && isGlassSupported()
     val reduceAnimation by AppSettings.reduceAnimation.collectAsStateWithLifecycle()
     // The glass settle is exactly the motion "reduce animation" promises to
     // drop — snapping both the indicator's travel and the glyph's pop to
     // their target leaves the tap itself instant rather than eased.
     val glassSpec: AnimationSpec<Float> = if (reduceAnimation) snap() else GlassSpring
-
-    var dragOffset by remember { mutableFloatStateOf(0f) }
     val haptics = rememberHaptics()
     val density = LocalDensity.current
     val currentSelectedIndex by rememberUpdatedState(selectedIndex)
 
-    // Search rides in its own circle beside the capsule, the way the Spotify
-    // bar splits them: the capsule divides its width between the browse tabs
-    // only, so adding Search never squeezes the other four.
-    val barTabs = if (tabs.size > 1) tabs.dropLast(1) else tabs
-    val searchTab = tabs.lastOrNull()
-    val searchIndex = tabs.lastIndex
-    // -1 while Search is the selection: nothing inside the capsule is lit then.
-    val capsuleSelected = if (selectedIndex <= barTabs.lastIndex) selectedIndex else -1
-
+    var dragOffset by remember { mutableFloatStateOf(0f) }
     var rowSize by remember { mutableStateOf(IntSize.Zero) }
     val gapPx = with(density) { 6.dp.toPx() }
-    val n = barTabs.size
+    val n = tabs.size
 
     // With weight(1f) + spacedBy(gap):
     //   tabWidth = (rowWidth - gap*(n-1)) / n
@@ -236,11 +342,11 @@ fun FloatingBottomBar(
     // reads everything that can change under it through these. Read plainly,
     // each would stay what it was on the first touch.
     val currentTabStepPx by rememberUpdatedState(tabStepPx)
-    val currentLastIndex by rememberUpdatedState(barTabs.lastIndex)
+    val currentLastIndex by rememberUpdatedState(tabs.lastIndex)
     val currentOnTabSelected by rememberUpdatedState(onTabSelected)
 
     val pillTargetPx = if (tabStepPx > 0f) {
-        capsuleSelected.coerceAtLeast(0) * tabStepPx + dragOffset
+        selectedIndex.coerceAtLeast(0) * tabStepPx + dragOffset
     } else 0f
 
     val animatedPillOffset by animateFloatAsState(
@@ -261,159 +367,113 @@ fun FloatingBottomBar(
     }
 
     // Held in the capsule's own numbering: while Search is the selection there
-    // is no lit tab in the capsule, and a 4 here would tick on the first pixel
-    // of every drag.
-    var lastHapticTab by remember { mutableIntStateOf(capsuleSelected.coerceAtLeast(0)) }
+    // is no lit tab in the capsule, and the last index would tick on the first
+    // pixel of every drag.
+    var lastHapticTab by remember { mutableIntStateOf(selectedIndex.coerceAtLeast(0)) }
 
     LaunchedEffect(selectedIndex) {
         dragOffset = 0f
-        lastHapticTab = capsuleSelected.coerceAtLeast(0)
+        lastHapticTab = selectedIndex.coerceAtLeast(0)
     }
 
-    // One material, two surfaces: the capsule and the Search circle are cut
-    // from the same glass, so the row reads as one bar with a gap in it.
-    val surface: @Composable () -> Modifier = {
-        when {
-            reduceDynamicBlur -> Modifier.background(container)
-            useGlass -> Modifier.liquidGlass(shape = pillShape)
-            else ->
-                Modifier.optimizedHazeEffect(
-                    state = hazeState,
-                    style = HazeMaterials.regular(container),
-                )
-        }
-    }
-
-    Row(
+    Box(
         modifier = modifier
-            .windowInsetsPadding(floatingBarInsets)
-            .padding(horizontal = NAV_BAR_GUTTER)
-            .padding(bottom = NAV_BAR_LIFT)
-            .fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        // The capsule takes what the Search circle leaves; the pair is centred
-        // as one cluster rather than the gap wedging itself into the middle.
-        horizontalArrangement = Arrangement.Center,
+            .clip(pillShape)
+            .then(surface())
+            .border(GLASS_EDGE_WIDTH, GLASS_EDGE_COLOR, pillShape)
+            .padding(horizontal = PILL_INSET, vertical = PILL_INSET),
     ) {
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .clip(pillShape)
-                .then(surface())
-                .border(GLASS_EDGE_WIDTH, GLASS_EDGE_COLOR, pillShape)
-                .padding(horizontal = PILL_INSET, vertical = PILL_INSET),
-        ) {
-            // Hidden while Search is selected, so nothing in the capsule sits
-            // half-lit behind a tab that is not the one in use.
-            if (tabWidthPx > 0f && capsuleSelected >= 0) {
-                Box(
-                    modifier = Modifier
-                        .width(with(density) { tabWidthPx.toDp() })
-                        .height(with(density) { rowSize.height.toDp() })
-                        .graphicsLayer {
-                            translationX = animatedPillOffset
-                            // Around its own centre, so the indicator draws out
-                            // both ways rather than growing a tail off one edge —
-                            // a leading edge that ran ahead of the glyph it is
-                            // meant to be behind would read as two things moving,
-                            // not one thing stretching.
-                            scaleX = 1f + lag * STRETCH
-                            scaleY = 1f - lag * STRETCH * SQUASH
-                        }
-                        .clip(pillShape)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)),
-                )
-            }
-
-            Row(
+        // Hidden while the selection is outside the capsule, so nothing in it
+        // sits half-lit behind a tab that is not the one in use.
+        if (tabWidthPx > 0f && selectedIndex >= 0) {
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .onSizeChanged { rowSize = it }
-                    .pointerInput(Unit) {
-                        // Every drag measures from the tab selected when it starts.
-                        // A stale index here measured them all from the tab the bar
-                        // first opened on: a drag right of it still landed, while
-                        // one to the left clamped back onto it and read as no change.
-                        var totalDrag = 0f
-                        var dragStartIndex = currentSelectedIndex.coerceIn(0, currentLastIndex)
-                        detectHorizontalDragGestures(
-                            onDragStart = {
-                                totalDrag = 0f
-                                dragStartIndex = currentSelectedIndex.coerceIn(0, currentLastIndex)
-                            },
-                            onDragCancel = { dragOffset = 0f },
-                            onDragEnd = {
-                                val step = currentTabStepPx
-                                if (step > 0f) {
-                                    val absoluteIndexFloat = (dragStartIndex + totalDrag / step)
-                                        .coerceIn(0f, currentLastIndex.toFloat())
-                                    val newIndex = absoluteIndexFloat.roundToInt()
-                                    if (newIndex != currentSelectedIndex) {
-                                        currentOnTabSelected(newIndex)
-                                    }
-                                }
-                                dragOffset = 0f
-                            },
-                            onHorizontalDrag = { _, delta ->
-                                val step = currentTabStepPx
-                                if (step <= 0f) return@detectHorizontalDragGestures
-                                totalDrag += delta
+                    .width(with(density) { tabWidthPx.toDp() })
+                    .height(with(density) { rowSize.height.toDp() })
+                    .graphicsLayer {
+                        translationX = animatedPillOffset
+                        // Around its own centre, so the indicator draws out
+                        // both ways rather than growing a tail off one edge —
+                        // a leading edge that ran ahead of the glyph it is
+                        // meant to be behind would read as two things moving,
+                        // not one thing stretching.
+                        scaleX = 1f + lag * STRETCH
+                        scaleY = 1f - lag * STRETCH * SQUASH
+                    }
+                    .clip(pillShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)),
+            )
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .onSizeChanged { rowSize = it }
+                .pointerInput(Unit) {
+                    // Every drag measures from the tab selected when it starts.
+                    // A stale index here measured them all from the tab the bar
+                    // first opened on: a drag right of it still landed, while
+                    // one to the left clamped back onto it and read as no change.
+                    var totalDrag = 0f
+                    var dragStartIndex = currentSelectedIndex.coerceIn(0, currentLastIndex)
+                    detectHorizontalDragGestures(
+                        onDragStart = {
+                            totalDrag = 0f
+                            dragStartIndex = currentSelectedIndex.coerceIn(0, currentLastIndex)
+                        },
+                        onDragCancel = { dragOffset = 0f },
+                        onDragEnd = {
+                            val step = currentTabStepPx
+                            if (step > 0f) {
                                 val absoluteIndexFloat = (dragStartIndex + totalDrag / step)
                                     .coerceIn(0f, currentLastIndex.toFloat())
-                                dragOffset =
-                                    absoluteIndexFloat * step -
-                                        currentSelectedIndex.coerceIn(0, currentLastIndex) * step
-
-                                val approxTab = absoluteIndexFloat.roundToInt()
-                                if (approxTab != lastHapticTab) {
-                                    haptics.play(Haptic.Tick)
-                                    lastHapticTab = approxTab
+                                val newIndex = absoluteIndexFloat.roundToInt()
+                                if (newIndex != currentSelectedIndex) {
+                                    currentOnTabSelected(newIndex)
                                 }
-                            },
-                        )
-                    },
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                // A real glass pill samples whatever artwork is behind it, not the
-                // theme's surface color, so a fixed onSurfaceVariant gray can lose
-                // contrast against it. Glass mode reads luminance off the surface
-                // color instead and picks pure black or white, same as the tint
-                // Echo's floating nav bar uses for its own liquid glass.
-                val glassTint = glassContentColor()
-                val adaptiveTint = if (useGlass) glassTint else null
-                barTabs.forEachIndexed { index, tab ->
-                    BottomBarItem(
-                        tab = tab,
-                        selected = index == selectedIndex,
-                        glassSpec = glassSpec,
-                        selectedTint = adaptiveTint,
-                        unselectedTint = adaptiveTint?.copy(alpha = 0.65f),
-                        onClick = { onTabSelected(index) },
-                        onActiveTabTap = onActiveTabTap,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-            }
-        }
+                            }
+                            dragOffset = 0f
+                        },
+                        onHorizontalDrag = { _, delta ->
+                            val step = currentTabStepPx
+                            if (step <= 0f) return@detectHorizontalDragGestures
+                            totalDrag += delta
+                            val absoluteIndexFloat = (dragStartIndex + totalDrag / step)
+                                .coerceIn(0f, currentLastIndex.toFloat())
+                            dragOffset =
+                                absoluteIndexFloat * step -
+                                    currentSelectedIndex.coerceIn(0, currentLastIndex) * step
 
-        if (searchTab != null) {
-            Spacer(Modifier.width(SEARCH_BUTTON_GAP))
-            SearchButton(
-                tab = searchTab,
-                selected = selectedIndex == searchIndex,
-                glassTint = if (useGlass) glassContentColor() else null,
-                onClick = {
-                    if (selectedIndex == searchIndex) {
-                        onActiveTabTap()
-                    } else {
-                        haptics.play(Haptic.Select)
-                    }
-                    onTabSelected(searchIndex)
+                            val approxTab = absoluteIndexFloat.roundToInt()
+                            if (approxTab != lastHapticTab) {
+                                haptics.play(Haptic.Tick)
+                                lastHapticTab = approxTab
+                            }
+                        },
+                    )
                 },
-                modifier = Modifier.size(SEARCH_BUTTON_SIZE),
-                surface = surface,
-            )
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // A real glass pill samples whatever artwork is behind it, not the
+            // theme's surface color, so a fixed onSurfaceVariant gray can lose
+            // contrast against it. Glass mode reads luminance off the surface
+            // color instead and picks pure black or white, same as the tint
+            // Echo's floating nav bar uses for its own liquid glass.
+            val glassTint = glassContentColor()
+            val adaptiveTint = if (useGlass) glassTint else null
+            tabs.forEachIndexed { index, tab ->
+                BottomBarItem(
+                    tab = tab,
+                    selected = index == selectedIndex,
+                    glassSpec = glassSpec,
+                    selectedTint = adaptiveTint,
+                    unselectedTint = adaptiveTint?.copy(alpha = 0.65f),
+                    onClick = { onTabSelected(index) },
+                    onActiveTabTap = onActiveTabTap,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
 }

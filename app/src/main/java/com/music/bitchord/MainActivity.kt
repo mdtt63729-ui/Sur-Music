@@ -165,6 +165,7 @@ import com.music.bitchord.data.settings.BitPerfectMode
 import com.music.bitchord.ui.AddonBlockedAlert
 import com.music.bitchord.data.settings.LibrarySort
 import com.music.bitchord.data.settings.ThemeMode
+import com.music.bitchord.data.settings.NavBarStyle
 import com.music.bitchord.ui.components.AccountProfileSelector
 import com.music.bitchord.ui.components.DacVolumeHud
 import com.music.bitchord.ui.components.DacVolumeKeys
@@ -570,6 +571,11 @@ private fun BitChordApp(
     // Recording the backdrop layer costs a draw pass, so it only runs when a
     // liquid-glass surface (the nav bar or artwork-page back button) can sample it.
     val glassActive = LocalLiquidGlassEnabled.current && isGlassSupported()
+    // Which of the two bar shapes to draw — the app's own pill, or the Spotify
+    // style capsule with Search beside it. Independent of the material: both
+    // shapes are drawn in whichever glass [glassActive] picks.
+    val navBarStyle by AppSettings.navBarStyle.collectAsStateWithLifecycle()
+    val legacyNavBar = navBarStyle == NavBarStyle.LEGACY
     // "Reduce dynamic blur" keeps the glass bar's *shape* — the folding
     // now-playing-and-tabs component is a layout, not an effect, and dropping
     // back to the two stacked bars would be answering a question about material
@@ -4424,6 +4430,7 @@ private fun BitChordApp(
                         modifier = Modifier.fillMaxWidth(),
                         onActiveTabTap = onActiveTabTap,
                         autoMixArtwork = miniArtwork,
+                        legacy = legacyNavBar,
                     )
                 } else Column(
                     modifier = Modifier
@@ -4472,6 +4479,7 @@ private fun BitChordApp(
                         hazeState = hazeState,
                         onTabSelected = onTabSelected,
                         onActiveTabTap = onActiveTabTap,
+                        legacy = legacyNavBar,
                     )
                 }
             }
