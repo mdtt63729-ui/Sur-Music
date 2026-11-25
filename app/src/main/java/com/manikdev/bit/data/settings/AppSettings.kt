@@ -150,6 +150,15 @@ enum class AppFont { DEFAULT, LEGACY }
 enum class NavBarStyle { DEFAULT, LEGACY }
 
 /**
+ * How the now playing screen is drawn.
+ *
+ * [APPLE_MUSIC] is the player the app ships with. [CLASSIC] is the older
+ * layout, being built now: the choice is recorded so the player can read it,
+ * and until that player lands the Apple Music one is what draws.
+ */
+enum class PlayerStyle { APPLE_MUSIC, CLASSIC }
+
+/**
  * Which of the equaliser's two tabs is driving the sound.
  *
  * One at a time rather than both at once: they are two ways of describing the
@@ -457,6 +466,7 @@ object AppSettings {
     val themeMode = MutableStateFlow(ThemeMode.DARK)
     val appFont = MutableStateFlow(AppFont.DEFAULT)
     val navBarStyle = MutableStateFlow(NavBarStyle.DEFAULT)
+    val playerStyle = MutableStateFlow(PlayerStyle.APPLE_MUSIC)
 
     /** Keep playing similar music once the queue runs out. */
     val autoplay = MutableStateFlow(true)
@@ -1121,6 +1131,11 @@ object AppSettings {
                 prefs.getString(KEY_NAV_BAR_STYLE, null) ?: NavBarStyle.DEFAULT.name,
             )
         }.getOrDefault(NavBarStyle.DEFAULT)
+        playerStyle.value = runCatching {
+            PlayerStyle.valueOf(
+                prefs.getString(KEY_PLAYER_STYLE, null) ?: PlayerStyle.APPLE_MUSIC.name,
+            )
+        }.getOrDefault(PlayerStyle.APPLE_MUSIC)
         autoplay.value = prefs.getBoolean(KEY_AUTOPLAY, true)
         shuffleEnabled.value = prefs.getBoolean(KEY_SHUFFLE_ENABLED, false)
         repeatMode.value = prefs.getInt(KEY_REPEAT_MODE, Player.REPEAT_MODE_OFF)
@@ -1575,6 +1590,11 @@ object AppSettings {
     fun setNavBarStyle(value: NavBarStyle) {
         navBarStyle.value = value
         prefs.edit().putString(KEY_NAV_BAR_STYLE, value.name).apply()
+    }
+
+    fun setPlayerStyle(value: PlayerStyle) {
+        playerStyle.value = value
+        prefs.edit().putString(KEY_PLAYER_STYLE, value.name).apply()
     }
 
     fun setReduceAnimation(value: Boolean) {
@@ -2474,6 +2494,7 @@ object AppSettings {
     private const val KEY_THEME = "theme_mode"
     private const val KEY_APP_FONT = "app_font"
     private const val KEY_NAV_BAR_STYLE = "nav_bar_style"
+    private const val KEY_PLAYER_STYLE = "player_style"
     private const val KEY_AUTOPLAY = "autoplay"
     private const val KEY_SHUFFLE_ENABLED = "shuffle_enabled"
     private const val KEY_REPEAT_MODE = "repeat_mode"

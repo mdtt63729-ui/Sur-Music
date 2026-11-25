@@ -93,6 +93,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import com.manikdev.bit.ui.components.IosSwitch
+import com.manikdev.bit.ui.components.PlayerStyleDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -173,6 +174,7 @@ import com.manikdev.bit.data.settings.DownloadQuality
 import com.manikdev.bit.data.settings.ThemeMode
 import com.manikdev.bit.data.settings.AppFont
 import com.manikdev.bit.data.settings.NavBarStyle
+import com.manikdev.bit.data.settings.PlayerStyle
 import com.manikdev.bit.data.settings.PlayerTheme
 import com.manikdev.bit.data.stats.Backup
 import com.manikdev.bit.playback.AudioCache
@@ -274,6 +276,20 @@ fun SettingsScreen(
     val theme by AppSettings.themeMode.collectAsStateWithLifecycle()
     val appFont by AppSettings.appFont.collectAsStateWithLifecycle()
     val navBarStyle by AppSettings.navBarStyle.collectAsStateWithLifecycle()
+    val playerStyle by AppSettings.playerStyle.collectAsStateWithLifecycle()
+    // The Player Style chooser is a popup in the middle of the screen, so its
+    // state lives here rather than as a page of its own.
+    var showPlayerStyle by remember { mutableStateOf(false) }
+    if (showPlayerStyle) {
+        PlayerStyleDialog(
+            current = playerStyle,
+            onDismiss = { showPlayerStyle = false },
+            onSelect = { style ->
+                AppSettings.setPlayerStyle(style)
+                showPlayerStyle = false
+            },
+        )
+    }
     val sessionId by AppSettings.audioSessionId.collectAsStateWithLifecycle()
     val outputPcmMode by AppSettings.outputPcmMode.collectAsStateWithLifecycle()
     val preferUsbDac by AppSettings.preferUsbDac.collectAsStateWithLifecycle()
@@ -1140,6 +1156,16 @@ fun SettingsScreen(
                     selectedIndex = NavBarStyle.entries.indexOf(navBarStyle),
                     onSelect = { AppSettings.setNavBarStyle(NavBarStyle.entries[it]) },
                     modifier = Modifier.padding(start = ROW_INSET, end = ROW_INSET, bottom = 14.dp),
+                )
+            }
+            val playerStyleTitle = stringResource(R.string.player_style)
+            row(playerStyleTitle, "player", "player style", "classic", "apple music", "now playing") {
+                SettingsRow(
+                    icon = SfIcons.PlayCircle,
+                    title = playerStyleTitle,
+                    subtitle = stringResource(R.string.player_style_subtitle),
+                    value = playerStyle.localizedLabel(),
+                    onClick = { showPlayerStyle = true },
                 )
             }
             val fontTitle = stringResource(R.string.font)
@@ -2273,6 +2299,14 @@ private fun ThemeMode.localizedLabel(): String = stringResource(
         ThemeMode.SYSTEM -> R.string.system
         ThemeMode.LIGHT -> R.string.light
         ThemeMode.DARK -> R.string.dark
+    },
+)
+
+@Composable
+private fun PlayerStyle.localizedLabel(): String = stringResource(
+    when (this) {
+        PlayerStyle.APPLE_MUSIC -> R.string.player_style_apple_music
+        PlayerStyle.CLASSIC -> R.string.player_style_classic
     },
 )
 

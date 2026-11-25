@@ -395,6 +395,13 @@
     <string name="glass_performance">Better Performance for Glass</string>
     <string name="liquid_glass_unavailable">Requires Android 12 or newer</string>
     <string name="nav_bar_style">Navigation bar</string>
+    <string name="player_style">Player Style</string>
+    <string name="player_style_subtitle">How the now playing screen is drawn</string>
+    <string name="player_style_apple_music">Apple Music</string>
+    <string name="player_style_apple_music_subtitle">Full-bleed artwork, the Apple Music layout and its lyrics. This is the player the app has now.</string>
+    <string name="player_style_classic">Classic</string>
+    <string name="player_style_classic_subtitle">The older player, with its own now playing layout.</string>
+    <string name="player_style_classic_note">Classic is still being built. Choosing it now records the choice — the Apple Music player stays on screen until it lands.</string>
     <string name="explore_subtitle">Moods, genres and new releases</string>
     <string name="radio_subtitle">Stations and mixes for you</string>
     <string name="nav_bar_style_subtitle">Default is the bar the app ships with. Legacy puts the tabs in a capsule with Search in its own circle beside it. Either one follows the Liquid Glass switch.</string>
