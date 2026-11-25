@@ -167,6 +167,7 @@ import com.manikdev.bit.ui.AddonBlockedAlert
 import com.manikdev.bit.data.settings.LibrarySort
 import com.manikdev.bit.data.settings.ThemeMode
 import com.manikdev.bit.data.settings.NavBarStyle
+import com.manikdev.bit.data.settings.PlayerStyle
 import com.manikdev.bit.ui.components.AccountProfileSelector
 import com.manikdev.bit.ui.components.DacVolumeHud
 import com.manikdev.bit.ui.components.DacVolumeKeys
@@ -291,6 +292,7 @@ import com.manikdev.bit.ui.components.backdrop.backdrops.rememberSnapshotBackdro
 import com.manikdev.bit.ui.components.backdrop.backdrops.snapshotBackdropSource
 import com.manikdev.bit.ui.components.isGlassSupported
 import com.manikdev.bit.ui.components.liquidGlass
+import com.manikdev.bit.ui.player.ClassicNowPlayingScreen
 import com.manikdev.bit.data.sources.SourceConfig
 import com.manikdev.bit.data.sources.SourceKind
 import com.manikdev.bit.data.sources.SourceRegistry
@@ -581,6 +583,9 @@ private fun BitChordApp(
     // shapes are drawn in whichever glass [glassActive] picks.
     val navBarStyle by AppSettings.navBarStyle.collectAsStateWithLifecycle()
     val legacyNavBar = navBarStyle == NavBarStyle.LEGACY
+    // Which of the two players the sheet draws. The sheet itself — and so the
+    // motion between the mini player and this one — is the same either way.
+    val playerStyle by AppSettings.playerStyle.collectAsStateWithLifecycle()
     // "Reduce dynamic blur" keeps the glass bar's *shape* — the folding
     // now-playing-and-tabs component is a layout, not an effect, and dropping
     // back to the two stacked bars would be answering a question about material
@@ -2649,7 +2654,7 @@ private fun BitChordApp(
 
     // The player's whole parameter list, kept apart from the sheet that
     // mounts it so the sheet's own setup reads on its own.
-    val nowPlaying: @Composable (Song) -> Unit = { song ->
+    val nowPlaying: @Composable (Song) -> Unit = nowPlaying@{ song ->
         val effectiveSong = optimisticVersionSong?.takeIf {
             it.videoId == convertedAudioId || it.videoId == convertedVideoId || it.videoId == keepVideoId ||
             it.videoId == YtMusicRepository.cachedAudioVersion(song.videoId)?.videoId ||
@@ -2677,6 +2682,55 @@ private fun BitChordApp(
                         it.memberId == playback.startedBy
                     }?.displayName?.takeIf(String::isNotBlank)
             }
+        // Classic is a content swap inside the same sheet: the open and close
+        // animate exactly as the Apple Music player's do, because it is the
+        // same animation running.
+        if (playerStyle == PlayerStyle.CLASSIC) {
+            ClassicNowPlayingScreen(
+                song = displayedSong,
+                isPlaying = player.isPlaying,
+                isLoading = playPauseBusy,
+                position = player.position,
+                durationMs = player.durationMs,
+                hasPrevious = player.hasPrevious,
+                hasNext = player.hasNext,
+                repeatMode = player.repeatMode,
+                shuffleEnabled = shuffleEnabled,
+                likeStatus = likeStatusOf(song),
+                onToggleLike = { toggleLikeOf(song) },
+                onPlayPause = { togglePlayPause() },
+                onNext = { controller?.seekToNextMediaItem() },
+                onPrevious = { controller?.seekToPrevious() },
+                onSeekFraction = { fraction ->
+                    controller?.let { active ->
+                        val duration = active.duration
+                        if (duration > 0) {
+                            active.seekTo(
+                                (fraction * duration).toLong()
+                                    .coerceIn(0L, (duration - SEEK_END_GUARD_MS).coerceAtLeast(0L)),
+                            )
+                        }
+                    }
+                },
+                onToggleShuffle = { controller?.toggleShuffle() },
+                onCycleRepeat = {
+                    controller?.let {
+                        val next = when (it.repeatMode) {
+                            Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
+                            Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
+                            else -> Player.REPEAT_MODE_OFF
+                        }
+                        AppSettings.setRepeatMode(next)
+                        it.repeatMode = next
+                    }
+                },
+                onClose = {
+                    if (reducePlayerMotion) showNowPlaying = false else playerSheetMotion.close()
+                },
+                modifier = Modifier.fillMaxSize(),
+            )
+            return@nowPlaying
+        }
         NowPlayingScreen(
             song = displayedSong,
             playedBy = playedBy,
