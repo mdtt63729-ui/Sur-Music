@@ -200,19 +200,10 @@ fun HomeScreen(
                     )
                 }
             }
-            if (onTopPickClick != null) {
-                when {
-                    !topPicks.isNullOrEmpty() -> item(key = "top-picks") {
-                        TopPicksShelf(
-                            picks = topPicks,
-                            listenerName = listenerName,
-                            onClick = onTopPickClick,
-                            onLongPress = onTopPickLongPress,
-                        )
-                    }
-                    topPicks == null && topPicksLoading -> topPicksSkeleton()
-                }
-            }
+            // Top Picks and Find Your Mood are gone from Home: they are rows of
+            // generated mood and mix cards, not music, and they sat between the
+            // cover shelves this page is for. The components still exist for
+            // Explore, which is where moods belong.
             when (state) {
                 is UiState.Loading -> {
                     if (recentlyPlayedLoading) {
@@ -276,10 +267,8 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
     onMoodsShowAll: () -> Unit = {},
 ) {
     shelves.forEachIndexed { index, shelf ->
-        // Find Your Mood follows the lead shelf, as on Apple Music's Home.
-        if (index == 1 && onMoodClick != null) {
-            item(key = "find-your-mood") { FindYourMoodShelf(onMoodClick, onMoodsShowAll) }
-        }
+        // No Find Your Mood row here — see the note where Top Picks used to be
+        // drawn. Home is cover shelves and nothing else.
         item(key = shelf.title + index) {
             val openItem: (ShelfItem) -> Unit = { item -> onItemClick(item, shelf.title) }
             // Listen again and Quick picks are lists on the web player, as
