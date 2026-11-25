@@ -5,13 +5,17 @@ import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.CornerBasedShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.Image
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.ScrollableDefaults
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -19,6 +23,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -38,11 +43,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ProvidableCompositionLocal
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -236,68 +244,131 @@ fun LibraryScreen(
 data class LibraryLink(val item: ShelfItem, val icon: ImageVector, val logo: DrawableResource? = null)
 
 /**
- * The folders as a plain list — icon, name, chevron, hairlines between — the
- * way a music app's library has always opened, rather than as cards that all
- * look alike because none of them has artwork.
+ * The material a folder card is drawn on.
+ *
+ * The app replaces this with its liquid glass while that is switched on — the
+ * glass modifier lives in the Android app, not in this shared module — and
+ * leaves it null otherwise, where the card paints the plain Material 3 surface
+ * in [LibraryLinkCard]. Nullable rather than a no-op modifier so the card knows
+ * which one it is drawing and does not lay a solid fill over the glass.
+ */
+val LocalLibraryCardGlass:
+    ProvidableCompositionLocal<(@Composable (CornerBasedShape) -> Modifier)?> =
+    staticCompositionLocalOf { null }
+
+/**
+ * The folders — downloads, local files, the remote libraries, and the pages
+ * that live under Library — as a two-column grid of cards.
+ *
+ * Each card is a tile of its own: a rounded square holding the glyph, centred
+ * and drawn large, with the name under it. That is the shape the Library's own
+ * artwork cards take, so the folders read as part of the same page rather than
+ * as a settings list that happens to be here.
  */
 @Composable
 private fun LibraryLinkList(links: List<LibraryLink>, onClick: (ShelfItem) -> Unit) {
-    Column(Modifier.padding(top = 4.dp, bottom = 22.dp)) {
-        links.forEachIndexed { index, link ->
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 54.dp)
-                    .clickable { onClick(link.item) }
-                    .padding(horizontal = PAGE_GUTTER),
-            ) {
-                if (link.logo != null) {
-                    // A mark, not a glyph: white on dark, black on light, with
-                    // its cut-outs left clear.
-                    Icon(
-                        painter = painterResource(link.logo),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.size(LINK_ICON_SIZE),
-                    )
-                } else {
-                    Icon(
-                        imageVector = link.icon,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(LINK_ICON_SIZE),
+    Column(
+        modifier = Modifier
+            .padding(top = 8.dp, bottom = 22.dp)
+            .padding(horizontal = PAGE_GUTTER),
+        verticalArrangement = Arrangement.spacedBy(LINK_CARD_GAP),
+    ) {
+        links.chunked(2).forEach { pair ->
+            Row(horizontalArrangement = Arrangement.spacedBy(LINK_CARD_GAP)) {
+                pair.forEach { link ->
+                    LibraryLinkCard(
+                        link = link,
+                        onClick = onClick,
+                        modifier = Modifier.weight(1f),
                     )
                 }
-                Spacer(Modifier.width(LINK_ICON_GAP))
-                Text(
-                    text = link.item.title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-                Icon(
-                    imageVector = BitChordIcons.ChevronRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .6f),
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-            if (index < links.lastIndex) {
-                HorizontalDivider(
-                    modifier = Modifier.padding(start = PAGE_GUTTER + LINK_ICON_SIZE + LINK_ICON_GAP),
-                    thickness = 0.5.dp,
-                    color = MaterialTheme.colorScheme.outline,
-                )
+                // An odd one out keeps the column width it would have had, so
+                // the last card does not stretch across the page.
+                if (pair.size == 1) Spacer(Modifier.weight(1f))
             }
         }
     }
 }
 
-private val LINK_ICON_SIZE = 24.dp
-private val LINK_ICON_GAP = 16.dp
+/**
+ * One folder card: the glyph in its own rounded square at the top, the name
+ * under it. Material 3 throughout — the surface, the tile and the type all come
+ * from the theme, so a light theme inverts the whole card rather than leaving a
+ * dark rectangle on it.
+ */
+@Composable
+private fun LibraryLinkCard(
+    link: LibraryLink,
+    onClick: (ShelfItem) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val shape = RoundedCornerShape(LINK_CARD_CORNER)
+    val glass = LocalLibraryCardGlass.current
+    Column(
+        modifier = modifier
+            .height(LINK_CARD_HEIGHT)
+            .clip(shape)
+            .then(
+                if (glass != null) {
+                    glass(shape)
+                } else {
+                    Modifier
+                        .background(MaterialTheme.colorScheme.surfaceContainer, shape)
+                        .border(
+                            LINK_CARD_BORDER,
+                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                            shape,
+                        )
+                },
+            )
+            .clickable { onClick(link.item) }
+            .padding(LINK_CARD_PADDING),
+        verticalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(LINK_TILE_SIZE)
+                .clip(RoundedCornerShape(LINK_TILE_CORNER))
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (link.logo != null) {
+                // A mark, not a glyph: white on dark, black on light, with its
+                // cut-outs left clear.
+                Icon(
+                    painter = painterResource(link.logo),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(LINK_GLYPH_SIZE),
+                )
+            } else {
+                Icon(
+                    imageVector = link.icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(LINK_GLYPH_SIZE),
+                )
+            }
+        }
+        Text(
+            text = link.item.title,
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+private val LINK_CARD_CORNER = 26.dp
+private val LINK_CARD_HEIGHT = 132.dp
+private val LINK_CARD_PADDING = 16.dp
+private val LINK_CARD_GAP = 12.dp
+private val LINK_CARD_BORDER = 1.dp
+/** The glyph's own square, and the glyph inside it. */
+private val LINK_TILE_SIZE = 56.dp
+private val LINK_TILE_CORNER = 18.dp
+private val LINK_GLYPH_SIZE = 30.dp
 
 /**
  * The one shelf on this page that can be written to: it leads with the tile

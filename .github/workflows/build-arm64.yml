@@ -9,6 +9,14 @@ on:
   push:
     branches: [ main ]
     paths:
+      - 'app/**'
+      - 'shared/**'
+      - 'sharedUi/**'
+      - 'wearos/**'
+      - 'tv/**'
+      - 'gradle/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
       - '.github/workflows/build-arm64.yml'
 
 jobs:

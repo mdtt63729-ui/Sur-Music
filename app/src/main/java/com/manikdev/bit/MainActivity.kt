@@ -94,6 +94,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
@@ -289,6 +290,7 @@ import com.manikdev.bit.ui.components.backdrop.backdrops.rememberLayerBackdrop
 import com.manikdev.bit.ui.components.backdrop.backdrops.rememberSnapshotBackdrop
 import com.manikdev.bit.ui.components.backdrop.backdrops.snapshotBackdropSource
 import com.manikdev.bit.ui.components.isGlassSupported
+import com.manikdev.bit.ui.components.liquidGlass
 import com.manikdev.bit.data.sources.SourceConfig
 import com.manikdev.bit.data.sources.SourceKind
 import com.manikdev.bit.data.sources.SourceRegistry
@@ -371,6 +373,7 @@ import com.manikdev.bit.ui.screens.HomeScreen
 import com.manikdev.bit.ui.screens.MixesScreen
 import com.manikdev.bit.ui.screens.LibraryGridPage
 import com.manikdev.bit.ui.screens.LibraryScreen
+import com.manikdev.bit.ui.screens.LocalLibraryCardGlass
 import com.manikdev.bit.ui.screens.MoodGenrePlaylistsScreen
 import com.manikdev.bit.ui.screens.SearchScreen
 import com.manikdev.bit.data.settings.SongSort
@@ -587,6 +590,16 @@ private fun BitChordApp(
     val reduceDynamicBlur by AppSettings.reduceDynamicBlur.collectAsStateWithLifecycle()
     val progressiveBlur by AppSettings.progressiveBlur.collectAsStateWithLifecycle()
     val glassSamplesBackdrop = glassActive && !reduceDynamicBlur
+    // The Library's folder cards are drawn on the same glass as the bars. The
+    // modifier lives in this module and the Library is shared code, so it is
+    // handed down through a CompositionLocal; null means the card paints the
+    // plain Material 3 surface instead.
+    val libraryCardGlass: (@Composable (CornerBasedShape) -> Modifier)? =
+        if (glassSamplesBackdrop) {
+            { shape -> Modifier.liquidGlass(shape = shape) }
+        } else {
+            null
+        }
     // What folds [GlassNavBar] between its expanded and inline shapes. Held here
     // rather than inside the bar because the page's scroll is what drives it,
     // and the page is a sibling of the bar rather than a child.
@@ -3901,7 +3914,10 @@ private fun BitChordApp(
                                 pullState = mixesPull,
                                 contentPadding = listPadding,
                             )
-                            else -> LibraryScreen(
+                            else -> CompositionLocalProvider(
+                                LocalLibraryCardGlass provides libraryCardGlass,
+                            ) {
+                                LibraryScreen(
                                 signedIn = signedIn,
                                 state = libraryState,
                                 listState = libraryListState,
@@ -3934,7 +3950,8 @@ private fun BitChordApp(
                                 contentPadding = listPadding,
                                 links = libraryLinks(),
                                 deviceItems = libraryDeviceItems(downloadedReleases) + localPlaylistItems,
-                            )
+                                )
+                            }
                         }
                     }
                     // A pushed page keeps its saved state — a scroll position,
