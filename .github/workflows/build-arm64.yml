@@ -23,26 +23,33 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
+      # No setup-android action: it shells out to `sdkmanager tools`, a package
+      # the current command-line tools no longer publish, and the job dies
+      # before compiling anything. The runner image already carries the SDK and
+      # ANDROID_HOME, so its own sdkmanager is used directly.
       - name: Install SDK packages
         run: |
-          yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          sdkmanager "platform-tools" "build-tools;37.0.0" "ndk;27.0.12077973"
-          # API 37 has shipped as both `android-37` and `android-37.0`; take
-          # whichever this SDK repository offers and make the name AGP looks for.
-          sdkmanager "platforms;android-37" || sdkmanager "platforms;android-37.0"
-          if [ -d "$ANDROID_HOME/platforms/android-37.0" ] && [ ! -d "$ANDROID_HOME/platforms/android-37" ]; then
-            ln -s android-37.0 "$ANDROID_HOME/platforms/android-37"
+          SDK="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          SDKMGR="$(ls -d "$SDK"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | head -1)"
+          echo "$(dirname "$SDKMGR")" >> "$GITHUB_PATH"
+          echo "sdkmanager: $SDKMGR"
+          yes | "$SDKMGR" --licenses > /dev/null 2>&1 || true
+          "$SDKMGR" "platform-tools" "build-tools;37.0.0" "ndk;27.0.12077973"
+          # API 37 ships as both `android-37` and `android-37.0`; take whichever
+          # this repository offers and add the name AGP looks for.
+          "$SDKMGR" "platforms;android-37" || "$SDKMGR" "platforms;android-37.0"
+          if [ -d "$SDK/platforms/android-37.0" ] && [ ! -d "$SDK/platforms/android-37" ]; then
+            ln -s android-37.0 "$SDK/platforms/android-37"
           fi
           # The build pins CMake 3.22.1. Where the SDK no longer offers it, point
           # Gradle at the runner's own CMake instead.
-          sdkmanager "cmake;3.22.1" || {
+          "$SDKMGR" "cmake;3.22.1" || {
             CM="$(dirname "$(dirname "$(readlink -f "$(which cmake)")")")"
             echo "cmake.dir=$CM" > local.properties
           }
-          ls "$ANDROID_HOME/platforms" "$ANDROID_HOME/build-tools" "$ANDROID_HOME/ndk"
+          ls "$SDK/platforms" "$SDK/build-tools" "$SDK/ndk"
 
       - name: Signing key for this build
         run: |
@@ -54,16 +61,16 @@ jobs:
 
       - name: Narrow the ABI splits to arm64-v8a
         run: |
-          python3 - <<'PY'
+          python3 - <<'PYEOF'
           p = "app/build.gradle.kts"
           s = open(p, encoding="utf-8").read()
-          old = '''            include("armeabi-v7a", "arm64-v8a", "x86_64")
-            isUniversalApk = true'''
-          new = '''            include("arm64-v8a")
-            isUniversalApk = false'''
-          assert s.count(old) == 1, "splits block not found"
-          open(p, "w", encoding="utf-8").write(s.replace(old, new))
-          PY
+          old = 'include("armeabi-v7a", "arm64-v8a", "x86_64")'
+          new = 'include("arm64-v8a")'
+          assert s.count(old) == 1, "splits include not found"
+          s = s.replace(old, new).replace("isUniversalApk = true", "isUniversalApk = false")
+          open(p, "w", encoding="utf-8").write(s)
+          print("narrowed to arm64-v8a")
+          PYEOF
 
       - name: Build prod release
         run: ./gradlew :app:assembleProdRelease --no-daemon --stacktrace
