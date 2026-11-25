@@ -63,13 +63,66 @@ jobs:
           }
           ls "$SDK/platforms" "$SDK/build-tools" "$SDK/ndk"
 
-      - name: Signing key for this build
+      # The signing key lives in the repository's Actions secrets, so every
+      # build is signed by the same identity and a new APK installs over the
+      # last one instead of needing an uninstall first.
+      - name: Signing key from secrets
+        env:
+          # The keystore itself, base64-encoded, under whichever name it was
+          # stored; the first non-empty one wins.
+          KS: ${{ secrets.KEYSTORE_BASE64 || secrets.KEYSTORE || secrets.SIGNING_KEYSTORE || secrets.KEYSTORE_FILE || secrets.SIGNING_KEY || secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASS: ${{ secrets.KEYSTORE_PASSWORD || secrets.STORE_PASSWORD || secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS || secrets.KEYSTORE_ALIAS || secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.KEY_PASSWORD || secrets.KEYSTORE_KEY_PASSWORD || secrets.ANDROID_KEY_PASSWORD }}
+          # Reporting only: which of the usual names the repo actually has, so a
+          # mismatch shows up in the log instead of as a failed build.
+          K1: ${{ secrets.KEYSTORE_BASE64 }}
+          K2: ${{ secrets.KEYSTORE }}
+          K3: ${{ secrets.SIGNING_KEYSTORE }}
+          K4: ${{ secrets.KEYSTORE_FILE }}
+          P1: ${{ secrets.KEYSTORE_PASSWORD }}
+          P2: ${{ secrets.STORE_PASSWORD }}
+          A1: ${{ secrets.KEY_ALIAS }}
+          A2: ${{ secrets.KEYSTORE_ALIAS }}
+          W1: ${{ secrets.KEY_PASSWORD }}
+          W2: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
         run: |
-          keytool -genkeypair -keystore bitme.jks -alias bitchord \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -storepass bitchord123 -keypass bitchord123 \
-            -dname "CN=BitChord, OU=Build, O=BitChord, L=NA, S=NA, C=IN"
-          printf 'storeFile=bitme.jks\nstorePassword=bitchord123\nkeyAlias=bitchord\nkeyPassword=bitchord123\n' > keystore.properties
+          set -euo pipefail
+          echo "secrets present:"
+          for pair in "KEYSTORE_BASE64=$K1" "KEYSTORE=$K2" "SIGNING_KEYSTORE=$K3" \
+                      "KEYSTORE_FILE=$K4" "KEYSTORE_PASSWORD=$P1" "STORE_PASSWORD=$P2" \
+                      "KEY_ALIAS=$A1" "KEYSTORE_ALIAS=$A2" "KEY_PASSWORD=$W1" \
+                      "KEYSTORE_KEY_PASSWORD=$W2"; do
+            name="${pair%%=*}"
+            value="${pair#*=}"
+            if [ -n "$value" ]; then echo "  $name: set"; else echo "  $name: -"; fi
+          done
+
+          if [ -z "${KS:-}" ]; then
+            echo "::error::No keystore secret found. Store the .jks base64-encoded as KEYSTORE_BASE64 (or KEYSTORE / SIGNING_KEYSTORE / KEYSTORE_FILE / SIGNING_KEY)."
+            exit 1
+          fi
+          for v in STORE_PASS KEY_ALIAS KEY_PASS; do
+            if [ -z "${!v:-}" ]; then
+              echo "::error::$v is empty — add KEYSTORE_PASSWORD, KEY_ALIAS and KEY_PASSWORD to the repository's Actions secrets."
+              exit 1
+            fi
+          done
+
+          # Accepts a base64 blob (usual) or the keystore written out as text.
+          if printf '%s' "$KS" | base64 -d -i > bitme.jks 2>/dev/null && [ -s bitme.jks ]; then
+            echo "keystore decoded from base64"
+          else
+            printf '%s' "$KS" > bitme.jks
+            echo "keystore written as-is"
+          fi
+
+          # Fail here, in seconds, rather than twelve minutes later at signing.
+          keytool -list -keystore bitme.jks -storepass "$STORE_PASS" -alias "$KEY_ALIAS" > /dev/null
+          echo "keystore opens and the alias exists"
+
+          printf 'storeFile=bitme.jks\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+            "$STORE_PASS" "$KEY_ALIAS" "$KEY_PASS" > keystore.properties
 
       - name: Narrow the ABI splits to arm64-v8a
         run: |
@@ -119,12 +172,11 @@ jobs:
             "" \
             "**SHA-256** \`${SHA}\`" \
             "" \
-            "Signed with a key generated inside the build, so uninstall any earlier" \
-            "build of this package before installing:" \
+            "Signed with the repository's own key, so this installs over the last" \
+            "build of the same package:" \
             "" \
             '```' \
-            "adb uninstall com.manikdev.bit" \
-            "adb install ${ASSET}" \
+            "adb install -r ${ASSET}" \
             '```')"
           if gh release view "$TAG" > /dev/null 2>&1; then
             gh release upload "$TAG" "$ASSET" --clobber
