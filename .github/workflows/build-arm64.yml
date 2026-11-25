@@ -1,0 +1,80 @@
+name: Build arm64-v8a APK
+
+# One signed release APK for arm64-v8a, downloadable from the run's artifacts.
+# The ABI split list is narrowed for the build only — app/build.gradle.kts in the
+# checkout is left untouched, so nothing here changes what the repo ships.
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/build-arm64.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK packages
+        run: |
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager "platform-tools" "build-tools;37.0.0" "ndk;27.0.12077973"
+          # API 37 has shipped as both `android-37` and `android-37.0`; take
+          # whichever this SDK repository offers and make the name AGP looks for.
+          sdkmanager "platforms;android-37" || sdkmanager "platforms;android-37.0"
+          if [ -d "$ANDROID_HOME/platforms/android-37.0" ] && [ ! -d "$ANDROID_HOME/platforms/android-37" ]; then
+            ln -s android-37.0 "$ANDROID_HOME/platforms/android-37"
+          fi
+          # The build pins CMake 3.22.1. Where the SDK no longer offers it, point
+          # Gradle at the runner's own CMake instead.
+          sdkmanager "cmake;3.22.1" || {
+            CM="$(dirname "$(dirname "$(readlink -f "$(which cmake)")")")"
+            echo "cmake.dir=$CM" > local.properties
+          }
+          ls "$ANDROID_HOME/platforms" "$ANDROID_HOME/build-tools" "$ANDROID_HOME/ndk"
+
+      - name: Signing key for this build
+        run: |
+          keytool -genkeypair -keystore bitme.jks -alias bitchord \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass bitchord123 -keypass bitchord123 \
+            -dname "CN=BitChord, OU=Build, O=BitChord, L=NA, S=NA, C=IN"
+          printf 'storeFile=bitme.jks\nstorePassword=bitchord123\nkeyAlias=bitchord\nkeyPassword=bitchord123\n' > keystore.properties
+
+      - name: Narrow the ABI splits to arm64-v8a
+        run: |
+          python3 - <<'PY'
+          p = "app/build.gradle.kts"
+          s = open(p, encoding="utf-8").read()
+          old = '''            include("armeabi-v7a", "arm64-v8a", "x86_64")
+            isUniversalApk = true'''
+          new = '''            include("arm64-v8a")
+            isUniversalApk = false'''
+          assert s.count(old) == 1, "splits block not found"
+          open(p, "w", encoding="utf-8").write(s.replace(old, new))
+          PY
+
+      - name: Build prod release
+        run: ./gradlew :app:assembleProdRelease --no-daemon --stacktrace
+
+      - name: Show outputs
+        if: always()
+        run: find app/build/outputs -name '*.apk' -printf '%p %s bytes\n' || true
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: bitchord-arm64-v8a
+          path: app/build/outputs/apk/prod/release/*.apk
+          if-no-files-found: error
