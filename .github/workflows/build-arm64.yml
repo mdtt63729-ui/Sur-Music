@@ -70,28 +70,28 @@ jobs:
         env:
           # The keystore itself, base64-encoded, under whichever name it was
           # stored; the first non-empty one wins.
-          KS: ${{ secrets.KEYSTORE_BASE64 || secrets.KEYSTORE || secrets.SIGNING_KEYSTORE || secrets.KEYSTORE_FILE || secrets.SIGNING_KEY || secrets.ANDROID_KEYSTORE_BASE64 }}
-          STORE_PASS: ${{ secrets.KEYSTORE_PASSWORD || secrets.STORE_PASSWORD || secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS || secrets.KEYSTORE_ALIAS || secrets.ANDROID_KEY_ALIAS }}
-          KEY_PASS: ${{ secrets.KEY_PASSWORD || secrets.KEYSTORE_KEY_PASSWORD || secrets.ANDROID_KEY_PASSWORD }}
+          KS: ${{ secrets.SIGNING_KEY || secrets.KEYSTORE_BASE64 || secrets.KEYSTORE || secrets.SIGNING_KEYSTORE }}
+          STORE_PASS: ${{ secrets.KEY_STORE_PASSWORD || secrets.KEYSTORE_PASSWORD || secrets.STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ALIAS || secrets.KEY_ALIAS || secrets.KEYSTORE_ALIAS }}
+          KEY_PASS: ${{ secrets.KEY_PASSWORD || secrets.KEYSTORE_KEY_PASSWORD }}
           # Reporting only: which of the usual names the repo actually has, so a
           # mismatch shows up in the log instead of as a failed build.
-          K1: ${{ secrets.KEYSTORE_BASE64 }}
-          K2: ${{ secrets.KEYSTORE }}
-          K3: ${{ secrets.SIGNING_KEYSTORE }}
+          K1: ${{ secrets.SIGNING_KEY }}
+          K2: ${{ secrets.KEYSTORE_BASE64 }}
+          K3: ${{ secrets.KEYSTORE }}
           K4: ${{ secrets.KEYSTORE_FILE }}
-          P1: ${{ secrets.KEYSTORE_PASSWORD }}
-          P2: ${{ secrets.STORE_PASSWORD }}
-          A1: ${{ secrets.KEY_ALIAS }}
-          A2: ${{ secrets.KEYSTORE_ALIAS }}
+          P1: ${{ secrets.KEY_STORE_PASSWORD }}
+          P2: ${{ secrets.KEYSTORE_PASSWORD }}
+          A1: ${{ secrets.ALIAS }}
+          A2: ${{ secrets.KEY_ALIAS }}
           W1: ${{ secrets.KEY_PASSWORD }}
           W2: ${{ secrets.KEYSTORE_KEY_PASSWORD }}
         run: |
           set -euo pipefail
           echo "secrets present:"
-          for pair in "KEYSTORE_BASE64=$K1" "KEYSTORE=$K2" "SIGNING_KEYSTORE=$K3" \
-                      "KEYSTORE_FILE=$K4" "KEYSTORE_PASSWORD=$P1" "STORE_PASSWORD=$P2" \
-                      "KEY_ALIAS=$A1" "KEYSTORE_ALIAS=$A2" "KEY_PASSWORD=$W1" \
+          for pair in "SIGNING_KEY=$K1" "KEYSTORE_BASE64=$K2" "KEYSTORE=$K3" \
+                      "KEYSTORE_FILE=$K4" "KEY_STORE_PASSWORD=$P1" "KEYSTORE_PASSWORD=$P2" \
+                      "ALIAS=$A1" "KEY_ALIAS=$A2" "KEY_PASSWORD=$W1" \
                       "KEYSTORE_KEY_PASSWORD=$W2"; do
             name="${pair%%=*}"
             value="${pair#*=}"
@@ -99,12 +99,12 @@ jobs:
           done
 
           if [ -z "${KS:-}" ]; then
-            echo "::error::No keystore secret found. Store the .jks base64-encoded as KEYSTORE_BASE64 (or KEYSTORE / SIGNING_KEYSTORE / KEYSTORE_FILE / SIGNING_KEY)."
+            echo "::error::No keystore secret found. Store the .jks base64-encoded as SIGNING_KEY."
             exit 1
           fi
           for v in STORE_PASS KEY_ALIAS KEY_PASS; do
             if [ -z "${!v:-}" ]; then
-              echo "::error::$v is empty — add KEYSTORE_PASSWORD, KEY_ALIAS and KEY_PASSWORD to the repository's Actions secrets."
+              echo "::error::$v is empty — this build reads KEY_STORE_PASSWORD, ALIAS and KEY_PASSWORD."
               exit 1
             fi
           done
