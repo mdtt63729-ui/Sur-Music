@@ -671,7 +671,7 @@ private fun SharedTransitionScope.ExpandedBar(
         // overflow this row used to be able to hit: the pill is now given a
         // width to divide rather than growing past the screen to fit its labels.
         Row(
-            horizontalArrangement = Arrangement.spacedBy(sizes.componentSpacing),
+            horizontalArrangement = Arrangement.spacedBy(sizes.standaloneSpacing),
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
@@ -1269,6 +1269,9 @@ data class FloatingTabBarSizes(
     val tabExpandedContentPadding: PaddingValues,
     val componentSpacing: Dp,
     val tabSpacing: Dp,
+    /** The gap between the tab pill and the standalone tab, which is not the
+     *  gap between the pill and the accessory above it. */
+    val standaloneSpacing: Dp = componentSpacing,
     val inlineComponentSpacing: Dp = componentSpacing,
     val inlineBarPadding: PaddingValues = PaddingValues(),
 )
@@ -1324,6 +1327,7 @@ object FloatingTabBarDefaults {
      * @param tabExpandedContentPadding the padding applied to tabs in expanded state
      * @param componentSpacing the spacing between components
      * @param tabSpacing the spacing between tabs in expanded state
+     * @param standaloneSpacing the spacing between the tab pill and the standalone tab
      * @param inlineComponentSpacing the spacing between components in inline state
      * @param inlineBarPadding padding around the whole bar in inline state, inside the bar's own
      */
@@ -1334,6 +1338,7 @@ object FloatingTabBarDefaults {
         tabExpandedContentPadding: PaddingValues = PaddingValues(vertical = 6.dp, horizontal = 20.dp),
         componentSpacing: Dp = 8.dp,
         tabSpacing: Dp = 0.dp,
+        standaloneSpacing: Dp = componentSpacing,
         inlineComponentSpacing: Dp = componentSpacing,
         inlineBarPadding: PaddingValues = PaddingValues(),
     ): FloatingTabBarSizes = FloatingTabBarSizes(
@@ -1342,6 +1347,7 @@ object FloatingTabBarDefaults {
         tabExpandedContentPadding = tabExpandedContentPadding,
         componentSpacing = componentSpacing,
         tabSpacing = tabSpacing,
+        standaloneSpacing = standaloneSpacing,
         inlineComponentSpacing = inlineComponentSpacing,
         inlineBarPadding = inlineBarPadding,
     )

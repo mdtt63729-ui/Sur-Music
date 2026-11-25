@@ -76,7 +76,9 @@ import androidx.compose.foundation.layout.fillMaxSize
  * controls and the tabs are one component rather than two stacked bars.
  *
  * Expanded, it is a full width now playing pill sitting over the tab pill, with
- * Search as the pill's last tab. Scrolling down collapses it inline — the tabs
+ * Search as its own circle beside the pill rather than a tab inside it — the
+ * Spotify bar's split, which keeps the four browse tabs from being squeezed to
+ * fit a fifth. Scrolling down collapses it inline — the tabs
  * fold down to just the selected one, the now playing controls narrow into the
  * gap between it and Search, and the whole thing becomes a single row the width
  * of the screen. Scrolling back up expands it. The fold is driven by
@@ -222,6 +224,10 @@ fun GlassNavBar(
         sizes = FloatingTabBarDefaults.sizes(
             tabBarContentPadding = PaddingValues(PILL_INSET),
             tabExpandedContentPadding = PaddingValues(vertical = TAB_VERTICAL_PADDING),
+            // The gap the plain bar leaves before its Search circle, so the two
+            // bars put the button in the same place. Only the gap beside the
+            // standalone tab moves; the accessory keeps its own spacing above.
+            standaloneSpacing = SEARCH_BUTTON_GAP,
             // Collapsed, Apple's row is narrower and more spaced: 48pt circles
             // 28pt in from the screen's sides, 14pt apart, centred on the line
             // the expanded bar's middle runs along.
@@ -237,9 +243,11 @@ fun GlassNavBar(
         contentKey = remember(selectedIndex, tabs, contentColor) {
             listOf(selectedIndex, tabs, contentColor)
         },
-        // Expanded, Search shares the tab pill; collapsed, it is the circle at
-        // the end of the row.
-        mergeStandaloneWhenExpanded = true,
+        // Search is never a pill tab: it is the circle at the end of the row in
+        // both states, the way the Spotify bar splits them. Merged, it would
+        // become the pill's fifth tab and the four browse tabs would each lose a
+        // fifth of their width to it.
+        mergeStandaloneWhenExpanded = false,
     ) {
         tabs.forEachIndexed { index, tab ->
             val isSelected = index == selectedIndex
