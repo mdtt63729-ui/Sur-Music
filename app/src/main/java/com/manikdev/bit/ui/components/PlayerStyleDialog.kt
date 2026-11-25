@@ -45,7 +45,8 @@ import com.manikdev.bit.data.settings.PlayerStyle
  *
  * [PlayerStyle.CLASSIC] is selectable and is remembered, but the player it
  * names does not draw yet; the note under the two rows says so rather than
- * leaving a tap that appears to do nothing.
+ * leaving a tap that appears to do nothing. A third style later is an entry in
+ * [PlayerStyle] and a row here — the popup draws whatever the enum holds.
  */
 @Composable
 fun PlayerStyleDialog(
