@@ -64,7 +64,7 @@ kotlin {
 }
 
 android {
-    namespace = "com.music.bitchord.shared"
+    namespace = "com.manikdev.bit.shared"
     compileSdk = 36
     // Without a minSdk the library's manifest has no <uses-sdk>, which the
     // manifest merger reads as targetSdk < 4 and answers by granting every app
