@@ -395,6 +395,8 @@
     <string name="glass_performance">Better Performance for Glass</string>
     <string name="liquid_glass_unavailable">Requires Android 12 or newer</string>
     <string name="nav_bar_style">Navigation bar</string>
+    <string name="explore_subtitle">Moods, genres and new releases</string>
+    <string name="radio_subtitle">Stations and mixes for you</string>
     <string name="nav_bar_style_subtitle">Default is the bar the app ships with. Legacy puts the tabs in a capsule with Search in its own circle beside it. Either one follows the Liquid Glass switch.</string>
     <string name="full_screen_cover_art">Full-screen cover art</string>
     <string name="player_theme">Player theme</string>

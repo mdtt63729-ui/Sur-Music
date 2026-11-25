@@ -193,6 +193,8 @@ import com.music.bitchord.ui.screens.libraryDeviceItems
 import com.music.bitchord.ui.screens.SPOTIFY_BROWSE_ID
 import com.music.bitchord.ui.screens.libraryLinks
 import com.music.bitchord.ui.screens.CACHE_FOLDER_BROWSE_ID
+import com.music.bitchord.ui.screens.EXPLORE_LINK_ID
+import com.music.bitchord.ui.screens.RADIO_LINK_ID
 import com.music.bitchord.ui.screens.ListenTogetherScreen
 import com.music.bitchord.ui.screens.PartyServerEditor
 import com.music.bitchord.ui.screens.SignatureApiEditor
@@ -1400,15 +1402,23 @@ private fun BitChordApp(
     val queueLabel = stringResource(R.string.queue)
     val sharedLinkLabel = stringResource(R.string.shared_link)
     val openedFileLabel = stringResource(R.string.opened_file)
-    val tabs = remember(homeLabel, exploreLabel, radioLabel, libraryLabel, searchLabel) {
+    // The bar carries Home, Library and Search. Explore and Radio are pages of
+    // the Library now — see [libraryLinks] — so they are reached from its
+    // folder list rather than from the bar, and the bar stays three tabs wide.
+    val tabs = remember(homeLabel, libraryLabel, searchLabel) {
         listOf(
             BottomTab(homeLabel, BitChordIcons.Home),
-            BottomTab(exploreLabel, BitChordIcons.TabExplore),
-            BottomTab(radioLabel, BitChordIcons.TabRadio),
             BottomTab(libraryLabel, BitChordIcons.TabLibrary),
             BottomTab(searchLabel, BitChordIcons.TabSearch),
         )
     }
+    // Bar position to the screen it opens. The two no longer share their
+    // numbers: TAB_LIBRARY is 3 and TAB_SEARCH is 4, but they sit at 1 and 2.
+    val navTabIds = remember { listOf(TAB_HOME, TAB_LIBRARY, TAB_SEARCH) }
+    // Explore and Radio are under Library, so while either is on screen the
+    // Library tab is the one lit rather than none of them.
+    val navSelectedIndex = navTabIds.indexOf(selectedTab).takeIf { it >= 0 }
+        ?: navTabIds.indexOf(TAB_LIBRARY)
 
     val scope = rememberCoroutineScope()
 
@@ -2302,6 +2312,14 @@ private fun BitChordApp(
                 navigator.push(AppRoute.Spotify)
                 return@let
             }
+            // Explore and Radio are screens rather than browse pages: the row
+            // switches the tab instead of opening a detail.
+            if (id == EXPLORE_LINK_ID || id == RADIO_LINK_ID) {
+                navigator.clear()
+                viewModel.closeMoodGenre()
+                selectedTab = if (id == EXPLORE_LINK_ID) TAB_EXPLORE else TAB_RADIO
+                return@let
+            }
             if ((id == "local:all" || id == "local:downloads") && !LocalMediaRepository.hasStoragePermission(context)) {
                 mediaPermissionLauncher.launch(mediaPermission)
             }
@@ -2953,7 +2971,16 @@ private fun BitChordApp(
     val canGoBack = navigator.entries.isNotEmpty() || detailStack.isNotEmpty() ||
         selectedMoodGenre != null || selectedTab != TAB_HOME
     val goBack: () -> Unit = {
-        if (!navigator.pop() && !viewModel.closeMoodGenre()) selectedTab = TAB_HOME
+        if (!navigator.pop() && !viewModel.closeMoodGenre()) {
+            // Explore and Radio are pages inside Library: back from either
+            // returns to the folder list that opened it, not to Home.
+            selectedTab =
+                if (selectedTab == TAB_EXPLORE || selectedTab == TAB_RADIO) {
+                    TAB_LIBRARY
+                } else {
+                    TAB_HOME
+                }
+        }
     }
 
     Box(
@@ -4019,8 +4046,14 @@ private fun BitChordApp(
                             detail != null && detailActiveShelf != null -> detailActiveShelf?.title.orEmpty()
                             detail != null -> detail.title
                             selectedMoodGenre != null -> selectedMoodGenre?.title.orEmpty()
-                            else -> tabs[selectedTab].let {
-                                if (it.label == "Play") stringResource(R.string.listen_now) else it.label
+                            else -> when (selectedTab) {
+                                TAB_EXPLORE -> exploreLabel
+                                TAB_RADIO -> radioLabel
+                                TAB_LIBRARY -> libraryLabel
+                                TAB_SEARCH -> searchLabel
+                                else -> homeLabel
+                            }.let {
+                                if (it == "Play") stringResource(R.string.listen_now) else it
                             }
                         }
                     },
@@ -4366,11 +4399,12 @@ private fun BitChordApp(
                 val onTabSelected: (Int) -> Unit = { index ->
                     navigator.clear()
                     viewModel.closeMoodGenre()
-                    selectedTab = index
+                    val tab = navTabIds.getOrElse(index) { TAB_HOME }
+                    selectedTab = tab
 
                     // Every search tab tap resets the field, focuses it, and opens
                     // the keyboard through SearchScreen's focus request.
-                    if (index == TAB_SEARCH) {
+                    if (tab == TAB_SEARCH) {
                         viewModel.onQueryChange("")
                         searchFocusRequested = true
                     }
@@ -4406,7 +4440,7 @@ private fun BitChordApp(
                     // and the pair folds together on scroll. See [GlassNavBar].
                     GlassNavBar(
                         tabs = tabs,
-                        selectedIndex = selectedTab,
+                        selectedIndex = navSelectedIndex,
                         onTabSelected = onTabSelected,
                         scrollConnection = navBarScroll,
                         song = player.song,
@@ -4475,7 +4509,7 @@ private fun BitChordApp(
                     }
                     FloatingBottomBar(
                         tabs = tabs,
-                        selectedIndex = selectedTab,
+                        selectedIndex = navSelectedIndex,
                         hazeState = hazeState,
                         onTabSelected = onTabSelected,
                         onActiveTabTap = onActiveTabTap,

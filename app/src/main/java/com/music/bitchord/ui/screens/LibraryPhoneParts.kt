@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Explore
+import androidx.compose.material.icons.rounded.Radio
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Lan
 import androidx.compose.material.icons.rounded.Storage
@@ -54,6 +56,21 @@ fun libraryLinks(): List<LibraryLink> {
         icon = icon,
     )
     return listOfNotNull(
+        // Explore and Radio used to be tabs of the bottom bar. They are pages
+        // of the Library now, so they open from its folder list like any other
+        // place, and the bar keeps Home, Library and Search.
+        link(
+            stringResource(R.string.explore),
+            stringResource(R.string.explore_subtitle),
+            EXPLORE_LINK_ID,
+            Icons.Rounded.Explore,
+        ),
+        link(
+            stringResource(R.string.radio),
+            stringResource(R.string.radio_subtitle),
+            RADIO_LINK_ID,
+            Icons.Rounded.Radio,
+        ),
         link(
             stringResource(R.string.downloads),
             stringResource(R.string.downloaded_songs),
@@ -133,6 +150,12 @@ fun deviceFolderIcon(browseId: String): ImageVector? = when (browseId) {
 }
 
 /** The Library row that opens the connected Spotify account; handled by the app, not a browse page. */
+/** The Library row that opens Explore. Not a browse page, so it carries its own id. */
+const val EXPLORE_LINK_ID = "app:explore"
+
+/** The Library row that opens Radio. */
+const val RADIO_LINK_ID = "app:radio"
+
 const val SPOTIFY_BROWSE_ID = "app:spotify"
 
 /** The Cached songs folder's page id — one of the `local:` device folders. */
