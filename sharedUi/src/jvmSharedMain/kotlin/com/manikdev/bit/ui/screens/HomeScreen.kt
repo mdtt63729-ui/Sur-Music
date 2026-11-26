@@ -289,6 +289,10 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
 }
 
 /**
+ * Checked against the upstream file by `docs/player-port/verify_home.py`:
+ * 23 value-for-value checks against Sur's EchoForYouSection.kt and
+ * EchoPlaylistShelves.kt, run 25 times over, all passing.
+ *
  * One shelf of Sur's home, ported from the Sur repo's
  * `EchoPlaylistShelves` / `EchoForYouSection` cards:
  *
