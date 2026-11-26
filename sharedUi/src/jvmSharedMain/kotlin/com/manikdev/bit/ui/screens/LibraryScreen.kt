@@ -5,7 +5,6 @@ import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.background
@@ -43,8 +42,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.ProvidableCompositionLocal
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -244,19 +241,6 @@ fun LibraryScreen(
 data class LibraryLink(val item: ShelfItem, val icon: ImageVector, val logo: DrawableResource? = null)
 
 /**
- * The material a folder card is drawn on.
- *
- * The app replaces this with its liquid glass while that is switched on — the
- * glass modifier lives in the Android app, not in this shared module — and
- * leaves it null otherwise, where the card paints the plain Material 3 surface
- * in [LibraryLinkCard]. Nullable rather than a no-op modifier so the card knows
- * which one it is drawing and does not lay a solid fill over the glass.
- */
-val LocalLibraryCardGlass:
-    ProvidableCompositionLocal<(@Composable (CornerBasedShape) -> Modifier)?> =
-    staticCompositionLocalOf { null }
-
-/**
  * The folders — downloads, local files, the remote libraries, and the pages
  * that live under Library — as a two-column grid of cards.
  *
@@ -303,23 +287,18 @@ private fun LibraryLinkCard(
     modifier: Modifier = Modifier,
 ) {
     val shape = RoundedCornerShape(LINK_CARD_CORNER)
-    val glass = LocalLibraryCardGlass.current
     Column(
         modifier = modifier
             .height(LINK_CARD_HEIGHT)
             .clip(shape)
-            .then(
-                if (glass != null) {
-                    glass(shape)
-                } else {
-                    Modifier
-                        .background(MaterialTheme.colorScheme.surfaceContainer, shape)
-                        .border(
-                            LINK_CARD_BORDER,
-                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-                            shape,
-                        )
-                },
+            // Plain Material 3, not the liquid glass modifier: these cards live
+            // in a LazyColumn, and a glass surface there samples a backdrop that
+            // is scrolling out from under it.
+            .background(MaterialTheme.colorScheme.surfaceContainer, shape)
+            .border(
+                LINK_CARD_BORDER,
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                shape,
             )
             .clickable { onClick(link.item) }
             .padding(LINK_CARD_PADDING),
