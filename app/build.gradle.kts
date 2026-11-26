@@ -190,7 +190,17 @@ android {
              * `benchmark` build type below before it ships.
              */
             isMinifyEnabled = true
-            isShrinkResources = true
+            /*
+             * Off, deliberately. Resource shrinking runs AAPT's path shortener,
+             * which rewrites res/mipmap-xxxhdpi/ic_launcher.webp to res/aB.webp.
+             * The launcher still finds the icon — it asks by resource id — but
+             * everything that reads an APK as a file (file managers, chat apps,
+             * the installer's own preview) looks for the conventional path and
+             * finds nothing, so the APK shows a question mark where its icon
+             * should be. The few hundred kilobytes it saved are not worth a
+             * build whose icon is missing everywhere outside the device.
+             */
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
