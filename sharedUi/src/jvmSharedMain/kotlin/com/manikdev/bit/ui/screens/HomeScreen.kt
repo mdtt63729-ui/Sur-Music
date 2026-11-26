@@ -12,6 +12,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import com.manikdev.bit.ui.components.longPressMenuClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,6 +30,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.LazyRow
 import com.manikdev.bit.ui.components.ShelfRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -52,7 +54,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
@@ -271,27 +275,122 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
         // drawn. Home is cover shelves and nothing else.
         item(key = shelf.title + index) {
             val openItem: (ShelfItem) -> Unit = { item -> onItemClick(item, shelf.title) }
-            // Listen again and Quick picks are lists on the web player, as
-            // Recents is here: one pager for all three.
-            if (shelf.layout == ShelfLayout.LIST ||
-                (index == 0 && shelf.title.equals(RECENTS_TITLE, ignoreCase = true))
-            ) {
-                RecentShelf(
-                    shelf = shelf,
-                    onItemClick = openItem,
-                    onItemLongPress = onItemLongPress,
-                    currentSong = currentSong,
-                    isPlaying = isPlaying,
-                )
-            } else {
-                Shelf(
-                    shelf = shelf,
-                    onItemClick = openItem,
-                    onItemLongPress = onItemLongPress,
-                    currentSong = currentSong,
-                    isPlaying = isPlaying,
+            // Sur's home, ported: a heading with its strapline, then a row of
+            // 148dp cards — every shelf, including the ones the web player
+            // draws as lists.
+            SurShelfRow(
+                shelf = shelf,
+                onItemClick = openItem,
+                onItemLongPress = onItemLongPress,
+            )
+        }
+    }
+}
+
+/**
+ * One shelf of Sur's home, ported from the Sur repo's
+ * `EchoPlaylistShelves` / `EchoForYouSection` cards:
+ *
+ *  * the heading in titleLarge bold, 15dp in from the page's edge
+ *  * YouTube's strapline under it, upper-cased and letter-spaced, as Sur draws it
+ *  * a row of 148dp cards, 12dp apart, each a 1:1 sleeve with a 12dp radius on
+ *    the surface variant, the name under it in bodyMedium semibold and the
+ *    credit under that in bodySmall
+ *
+ * The card's own artwork already carries YouTube's painted title, which is why
+ * Sur repeats the name under it rather than over it.
+ */
+@Composable
+private fun SurShelfRow(
+    shelf: HomeShelf,
+    onItemClick: (ShelfItem) -> Unit,
+    onItemLongPress: ((ShelfItem) -> Unit)?,
+) {
+    if (shelf.items.isEmpty()) return
+    Column(Modifier.fillMaxWidth()) {
+        Text(
+            text = shelf.title,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.padding(horizontal = 15.dp, vertical = 8.dp),
+        )
+        if (shelf.subtitle.isNotBlank()) {
+            Text(
+                text = shelf.subtitle.uppercase(),
+                style = MaterialTheme.typography.bodySmall,
+                letterSpacing = 1.2.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 15.dp).padding(bottom = 10.dp),
+            )
+        }
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 15.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            items(shelf.items, key = { it.videoId ?: it.browseId ?: it.title }) { item ->
+                SurShelfCard(
+                    item = item,
+                    onClick = { onItemClick(item) },
+                    onLongPress = onItemLongPress,
                 )
             }
+        }
+        Spacer(Modifier.height(18.dp))
+    }
+}
+
+/** Sur's card: a 148dp square sleeve, the name and the credit under it. */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun SurShelfCard(
+    item: ShelfItem,
+    onClick: () -> Unit,
+    onLongPress: ((ShelfItem) -> Unit)?,
+) {
+    val longPress = onLongPress?.let { press ->
+        Modifier.combinedClickable(
+            onClick = onClick,
+            onLongClick = { press(item) },
+        )
+    } ?: Modifier.clickable(onClick = onClick)
+    Column(
+        modifier = Modifier
+            .width(148.dp)
+            .then(longPress),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1f)
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center,
+        ) {
+            AsyncImage(
+                model = item.thumbnailUrl,
+                contentDescription = item.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxWidth().aspectRatio(1f),
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = item.title,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onBackground,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        if (item.subtitle.isNotBlank()) {
+            Text(
+                text = item.subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
