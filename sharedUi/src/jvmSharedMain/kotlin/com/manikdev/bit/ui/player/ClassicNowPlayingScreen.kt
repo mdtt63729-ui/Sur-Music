@@ -55,7 +55,7 @@ import com.manikdev.bit.playback.PlaybackPosition
  * button differently, would be a second player to keep correct.
  */
 @Composable
-internal fun ClassicNowPlayingScreen(
+fun ClassicNowPlayingScreen(
     song: Song,
     isPlaying: Boolean,
     isLoading: Boolean,
