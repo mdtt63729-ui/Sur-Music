@@ -96,6 +96,15 @@ object AppUpdateChecker {
             if (isNewer(latest, BuildConfig.VERSION_NAME)) {
                 _available.value = UpdateInfo(latest, url, apkUrl, notes)
             }
+        }.onFailure { error ->
+            // Nothing else reports this: the check is silent by design, so a
+            // failure used to be invisible on the device. One line in logcat
+            // turns "no update ever appears" into a readable cause.
+            android.util.Log.w(
+                "BitChordUpdate",
+                "update check failed for $LATEST_RELEASE_URL: ${error.message}",
+                error,
+            )
         }
     }
 
