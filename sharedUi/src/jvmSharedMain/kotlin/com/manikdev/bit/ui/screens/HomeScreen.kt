@@ -280,6 +280,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
             // draws as lists.
             SurShelfRow(
                 shelf = shelf,
+                shelfIndex = index,
                 onItemClick = openItem,
                 onItemLongPress = onItemLongPress,
             )
@@ -303,6 +304,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
 @Composable
 private fun SurShelfRow(
     shelf: HomeShelf,
+    shelfIndex: Int,
     onItemClick: (ShelfItem) -> Unit,
     onItemLongPress: ((ShelfItem) -> Unit)?,
 ) {
@@ -312,7 +314,6 @@ private fun SurShelfRow(
             text = shelf.title,
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.padding(horizontal = 15.dp, vertical = 8.dp),
         )
         if (shelf.subtitle.isNotBlank()) {
@@ -331,12 +332,13 @@ private fun SurShelfRow(
             items(shelf.items, key = { it.videoId ?: it.browseId ?: it.title }) { item ->
                 SurShelfCard(
                     item = item,
+                    width = if (shelfIndex == 0) 200.dp else 148.dp,
                     onClick = { onItemClick(item) },
                     onLongPress = onItemLongPress,
                 )
             }
         }
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(8.dp))
     }
 }
 
@@ -345,6 +347,7 @@ private fun SurShelfRow(
 @Composable
 private fun SurShelfCard(
     item: ShelfItem,
+    width: androidx.compose.ui.unit.Dp,
     onClick: () -> Unit,
     onLongPress: ((ShelfItem) -> Unit)?,
 ) {
@@ -356,7 +359,7 @@ private fun SurShelfCard(
     } ?: Modifier.clickable(onClick = onClick)
     Column(
         modifier = Modifier
-            .width(148.dp)
+            .width(width)
             .then(longPress),
     ) {
         Box(
@@ -370,7 +373,6 @@ private fun SurShelfCard(
             AsyncImage(
                 model = item.thumbnailUrl,
                 contentDescription = item.title,
-                contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxWidth().aspectRatio(1f),
             )
         }
@@ -379,8 +381,7 @@ private fun SurShelfCard(
             text = item.title,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onBackground,
-            maxLines = 2,
+            maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
         if (item.subtitle.isNotBlank()) {
