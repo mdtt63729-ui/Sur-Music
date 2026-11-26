@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -134,11 +135,25 @@ private fun StyleRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Column(Modifier.weight(1f)) {
-            Text(
-                text = stringResource(style.titleRes()),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = stringResource(style.titleRes()),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                if (style.needsAndroid12()) {
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(R.string.player_style_apple_music_tag),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(percent = 50))
+                            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                            .padding(horizontal = 8.dp, vertical = 3.dp),
+                    )
+                }
+            }
             Text(
                 text = stringResource(style.subtitleRes()),
                 style = MaterialTheme.typography.bodySmall,
@@ -163,7 +178,14 @@ private fun PlayerStyle.titleRes(): Int = when (this) {
 
 private fun PlayerStyle.subtitleRes(): Int = when (this) {
     PlayerStyle.APPLE_MUSIC -> R.string.player_style_apple_music_subtitle
+    PlayerStyle.M3_EXPRESSIVE -> R.string.player_style_m3_expressive_subtitle
     PlayerStyle.CLASSIC -> R.string.player_style_classic_subtitle
 }
+
+/**
+ * The Apple Music player's blur is a no-op below Android 12, so the tag says so
+ * before the choice is made rather than after the player looks wrong.
+ */
+private fun PlayerStyle.needsAndroid12(): Boolean = this == PlayerStyle.APPLE_MUSIC
 
 private val SCRIM = Color.Black.copy(alpha = 0.45f)

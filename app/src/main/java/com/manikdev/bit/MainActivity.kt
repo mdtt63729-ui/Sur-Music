@@ -293,6 +293,7 @@ import com.manikdev.bit.ui.components.backdrop.backdrops.snapshotBackdropSource
 import com.manikdev.bit.ui.components.isGlassSupported
 import com.manikdev.bit.ui.components.liquidGlass
 import com.manikdev.bit.ui.player.ClassicNowPlayingScreen
+import com.manikdev.bit.ui.player.M3ExpressiveNowPlayingScreen
 import com.manikdev.bit.data.sources.SourceConfig
 import com.manikdev.bit.data.sources.SourceKind
 import com.manikdev.bit.data.sources.SourceRegistry
@@ -2687,6 +2688,52 @@ private fun BitChordApp(
         // same animation running.
         if (playerStyle == PlayerStyle.CLASSIC) {
             ClassicNowPlayingScreen(
+                song = displayedSong,
+                isPlaying = player.isPlaying,
+                isLoading = playPauseBusy,
+                position = player.position,
+                durationMs = player.durationMs,
+                hasPrevious = player.hasPrevious,
+                hasNext = player.hasNext,
+                repeatMode = player.repeatMode,
+                shuffleEnabled = shuffleEnabled,
+                likeStatus = likeStatusOf(song),
+                onToggleLike = { toggleLikeOf(song) },
+                onPlayPause = { togglePlayPause() },
+                onNext = { controller?.seekToNextMediaItem() },
+                onPrevious = { controller?.seekToPrevious() },
+                onSeekFraction = { fraction ->
+                    controller?.let { active ->
+                        val duration = active.duration
+                        if (duration > 0) {
+                            active.seekTo(
+                                (fraction * duration).toLong()
+                                    .coerceIn(0L, (duration - SEEK_END_GUARD_MS).coerceAtLeast(0L)),
+                            )
+                        }
+                    }
+                },
+                onToggleShuffle = { controller?.toggleShuffle() },
+                onCycleRepeat = {
+                    controller?.let {
+                        val next = when (it.repeatMode) {
+                            Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
+                            Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
+                            else -> Player.REPEAT_MODE_OFF
+                        }
+                        AppSettings.setRepeatMode(next)
+                        it.repeatMode = next
+                    }
+                },
+                onClose = {
+                    if (reducePlayerMotion) showNowPlaying = false else playerSheetMotion.close()
+                },
+                modifier = Modifier.fillMaxSize(),
+            )
+            return@nowPlaying
+        }
+        if (playerStyle == PlayerStyle.M3_EXPRESSIVE) {
+            M3ExpressiveNowPlayingScreen(
                 song = displayedSong,
                 isPlaying = player.isPlaying,
                 isLoading = playPauseBusy,

@@ -2306,6 +2306,7 @@ private fun ThemeMode.localizedLabel(): String = stringResource(
 private fun PlayerStyle.localizedLabel(): String = stringResource(
     when (this) {
         PlayerStyle.APPLE_MUSIC -> R.string.player_style_apple_music
+        PlayerStyle.M3_EXPRESSIVE -> R.string.player_style_m3_expressive
         PlayerStyle.CLASSIC -> R.string.player_style_classic
     },
 )

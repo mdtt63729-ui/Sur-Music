@@ -156,7 +156,16 @@ enum class NavBarStyle { DEFAULT, LEGACY }
  * layout, being built now: the choice is recorded so the player can read it,
  * and until that player lands the Apple Music one is what draws.
  */
-enum class PlayerStyle { APPLE_MUSIC, CLASSIC }
+enum class PlayerStyle {
+    /** The classic layout, from the Sur repo's Spotify-style player. */
+    CLASSIC,
+
+    /** The Material 3 Expressive layout, from the limusic-android player. */
+    M3_EXPRESSIVE,
+
+    /** The player the app ships with. Needs Android 12 for its blur. */
+    APPLE_MUSIC,
+}
 
 /**
  * Which of the equaliser's two tabs is driving the sound.

@@ -398,6 +398,9 @@
     <string name="player_style">Player Style</string>
     <string name="player_style_subtitle">How the now playing screen is drawn</string>
     <string name="player_style_apple_music">Apple Music</string>
+    <string name="player_style_apple_music_tag">Android 12+</string>
+    <string name="player_style_m3_expressive">M3 Expressive</string>
+    <string name="player_style_m3_expressive_subtitle">Tonal surfaces, a large rounded sleeve and filled Material 3 buttons, with a colour scheme taken from the cover.</string>
     <string name="player_style_apple_music_subtitle">Full-bleed artwork, the Apple Music layout and its lyrics. This is the player the app has now.</string>
     <string name="player_style_classic">Classic</string>
     <string name="player_style_classic_subtitle">The older player, with its own now playing layout.</string>
