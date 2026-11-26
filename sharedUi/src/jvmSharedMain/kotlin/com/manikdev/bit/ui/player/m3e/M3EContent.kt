@@ -3,6 +3,7 @@ package com.manikdev.bit.ui.player.m3e
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -440,11 +441,12 @@ private fun M3EWavySeekBar(
         label = "wavySeekBarThumbMorph",
     )
     // A slow drift along the wave, so the line breathes while it plays.
-    val wavePhase = rememberInfiniteTransition(label = "m3eWave").animateFloat(
+    val waveTransition = rememberInfiniteTransition(label = "m3eWave")
+    val wavePhase by waveTransition.animateFloat(
         initialValue = 0f,
         targetValue = (2 * PI).toFloat(),
         animationSpec = infiniteRepeatable(
-            animation = tween(1800, easing = LinearEasing),
+            animation = tween(durationMillis = 1800, easing = LinearEasing),
         ),
         label = "m3eWavePhase",
     )
@@ -516,7 +518,7 @@ private fun M3EWavySeekBar(
             var x = 0f
             while (x <= progressX) {
                 val ripple = (x / waveLength) * 2f * PI.toFloat() + phase
-                path.lineTo(x, centerY + sin(ripple) * waveHeight)
+                path.lineTo(x, centerY + sin(ripple.toDouble()).toFloat() * waveHeight)
                 x += 3f
             }
             path.lineTo(progressX, centerY)
