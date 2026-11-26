@@ -42,8 +42,20 @@ object AppUpdateChecker {
 
     private const val CACHE_SUBDIR = "updates"
 
+    /**
+     * This app's own repository. The workflow in .github/workflows/build-arm64.yml
+     * publishes every build here as a release tagged with the app's version, so
+     * "latest release" is the newest build this app can install.
+     */
     private const val LATEST_RELEASE_URL =
-        "https://api.github.com/repos/kushagrasinghx/BitChord/releases/latest"
+        "https://api.github.com/repos/mdtt63729-ui/Sur-Music/releases/latest"
+
+    /**
+     * api.github.com refuses a request with no User-Agent, and this client sets
+     * none of its own — without this the check comes back 403 and the app
+     * silently never offers an update.
+     */
+    private const val USER_AGENT = "BitChord-Android"
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -67,7 +79,11 @@ object AppUpdateChecker {
 
     suspend fun check() = withContext(Dispatchers.IO) {
         runCatching {
-            val request = Request.Builder().url(LATEST_RELEASE_URL).build()
+            val request = Request.Builder()
+                .url(LATEST_RELEASE_URL)
+                .header("User-Agent", USER_AGENT)
+                .header("Accept", "application/vnd.github+json")
+                .build()
             val body = Http.client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) null else response.body?.string()
             } ?: return@runCatching
@@ -144,7 +160,10 @@ object AppUpdateChecker {
             dir.listFiles()?.forEach { it.delete() }
             val target = File(dir, "bitchord-${info.version}.apk")
 
-            val request = Request.Builder().url(url).build()
+            val request = Request.Builder()
+                .url(url)
+                .header("User-Agent", USER_AGENT)
+                .build()
             Http.client.newCall(request).execute().use { response ->
                 check(response.isSuccessful) { "Download failed: HTTP ${response.code}" }
                 val body = response.body ?: error("Empty download body")
