@@ -1,0 +1,1067 @@
+package com.simohypers.limusic.ui.screen.player.content
+
+import com.simohypers.limusic.ui.screen.player.content.immersive.CoverLyricLine
+import com.simohypers.limusic.ui.theme.rounded
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.MarqueeAnimationMode
+import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.FilledIconToggleButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialExpressiveTheme
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.koin.compose.koinInject
+import com.simohypers.limusic.viewModel.SharedViewModel
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
+import coil3.compose.LocalPlatformContext
+import coil3.request.CachePolicy
+import coil3.request.ImageRequest
+import coil3.request.crossfade
+import com.materialkolor.PaletteStyle
+import com.materialkolor.rememberDynamicColorScheme
+import com.simohypers.limusic.domain.mediaservice.handler.RepeatState
+import com.simohypers.limusic.Platform
+import com.simohypers.limusic.extension.elapsedLabel
+import com.simohypers.limusic.extension.formatDuration
+import com.simohypers.limusic.extension.lengthLabel
+import com.simohypers.limusic.extension.getScreenSizeInfo
+import com.simohypers.limusic.extension.isElementVisible
+import com.simohypers.limusic.extension.smoothScrimBrush
+import com.simohypers.limusic.getPlatform
+import com.simohypers.limusic.ui.component.LyricText
+import com.simohypers.limusic.ui.component.ExplicitBadge
+import com.simohypers.limusic.ui.component.heartBurst
+import com.simohypers.limusic.ui.component.rememberHeartBurstState
+import com.simohypers.limusic.ui.component.rememberHolderPainter
+import com.simohypers.limusic.ui.icon.Favorite
+import com.simohypers.limusic.ui.icon.FavoriteBorder
+import com.simohypers.limusic.ui.icon.Headphones
+import com.simohypers.limusic.ui.icon.Info
+import com.simohypers.limusic.ui.icon.MoreVert
+import com.simohypers.limusic.ui.icon.PlaylistAdd
+import com.simohypers.limusic.ui.icon.QueueMusic
+import com.simohypers.limusic.ui.icon.Repeat
+import com.simohypers.limusic.ui.icon.RepeatOne
+import com.simohypers.limusic.ui.icon.Shuffle
+import com.simohypers.limusic.ui.icon.LimusicIcons
+import com.simohypers.limusic.ui.screen.player.content.immersive.AudioOutputSheetHost
+import com.simohypers.limusic.ui.screen.player.content.expressive.ExpressiveTransportRow
+import com.simohypers.limusic.ui.screen.player.content.expressive.WavySeekBar
+import com.simohypers.limusic.ui.theme.LocalArtworkColors
+import com.simohypers.limusic.ui.theme.LocalIsDarkTheme
+import com.simohypers.limusic.ui.theme.typo
+import com.simohypers.limusic.viewModel.UIEvent
+import kotlinx.coroutines.delay
+import org.jetbrains.compose.resources.stringResource
+import limusic.composeapp.generated.resources.Res
+import limusic.composeapp.generated.resources.audio_output
+import limusic.composeapp.generated.resources.crossfading
+import limusic.composeapp.generated.resources.now_playing_upper
+
+/**
+ * The Material 3 Expressive ("Tonal pills") Now Playing style.
+ *
+ * A full dark tonal scheme is derived from the artwork palette (materialKolor Vibrant) and
+ * everything renders through Material color roles — no black gradient, no hardcoded whites
+ * on semantic surfaces. Layout skeleton (scroll, artwork pager sync, vertical rhythm,
+ * below-the-fold cards, sticky toolbar) mirrors [NowPlayingContentSpotify] one-to-one so
+ * both styles behave identically; only the presentation differs.
+ *
+ * Apple Music's animated artwork plays the Immersive style's way instead (see
+ * [ImmersiveAnimatedArtworkPage]), under controls that never hide.
+ *
+ * Canvas mode behaves exactly like Classic: when a Spotify canvas exists the page goes flat
+ * black, the canvas plays fullscreen as the bottom layer of the current pager page and the
+ * artwork card hides while keeping its layout slot. The info block fades with
+ * [NowPlayingContentState.controlLayoutAlpha], a tap on the page toggles it via
+ * [NowPlayingContentActions.onToggleControls], and while hidden
+ * ([NowPlayingContentState.showControlLayout] false) the Classic "unfocused" metadata
+ * overlay renders over the info area. The shell owns the auto-hide state machine.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun NowPlayingContentM3Expressive(
+    state: NowPlayingContentState,
+    actions: NowPlayingContentActions,
+) {
+    NowPlayingExpressiveTheme(state = state) {
+        NowPlayingM3ExpressiveLayout(state = state, actions = actions)
+    }
+}
+
+/**
+ * This style's colour system: a scheme of its own from the cover with Adapt colors to artwork on,
+ * the app's own scheme (the accent the user picked) with it off.
+ */
+@Composable
+internal fun NowPlayingExpressiveTheme(
+    state: NowPlayingContentState,
+    content: @Composable () -> Unit,
+) {
+    if (!LocalArtworkColors.current) return content()
+    // === 1. Color system: full dark scheme derived from the artwork ===
+    // Seeded the way Material You seeds from a wallpaper: quantize the artwork and score the colours
+    // by population and chroma. Not from the shell's palette colour: that is the cover's DARK
+    // swatch, chosen for Classic's gradient, and on a light cover it is often a near-grey line whose
+    // stray hue the Vibrant style below blows up into a colour the cover does not have (a pink
+    // sleeve came out green). The app's accent, already the cover's, stands in until it resolves.
+    // Read off the pager's covers, blended as they slide, so the page changes with the cover on a
+    // swipe or a skip instead of after the new cover has loaded.
+    val seedColor = rememberPagerCoverColor(state) ?: MaterialTheme.colorScheme.primary
+    // A slide is followed exactly. Anything else (a colour read late, a jump across the queue)
+    // GLIDES: a whole tonal scheme snapping at once reads as a flash.
+    val animatedSeedColor by animateColorAsState(
+        targetValue = seedColor,
+        animationSpec = if (state.artworkPagerState.isScrollInProgress) snap() else tween(durationMillis = 800),
+        label = "m3eSeedColor",
+    )
+    val derivedScheme =
+        rememberDynamicColorScheme(
+            seedColor = animatedSeedColor,
+            isDark = LocalIsDarkTheme.current,
+            isAmoled = false,
+            style = PaletteStyle.Vibrant,
+        )
+    MaterialExpressiveTheme(colorScheme = derivedScheme) {
+        content()
+    }
+}
+
+// Between the header and the title row on a short window, where the artwork card is left out.
+private val SHORT_GAP = 8.dp
+
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun NowPlayingM3ExpressiveLayout(
+    state: NowPlayingContentState,
+    actions: NowPlayingContentActions,
+) {
+    val screenInfo = getScreenSizeInfo()
+    val localDensity = LocalDensity.current
+    val colorScheme = MaterialTheme.colorScheme
+
+    val isRepeatOne = state.controllerState.repeatState is RepeatState.One
+    var showOutputSheet by rememberSaveable { mutableStateOf(false) }
+
+    // Canvas mode fades the info block in and out. The shell's shared 500ms linear alpha exposes
+    // a long half-blended phase in which container-backed buttons pick up the bright canvas
+    // behind them and read lighter than the header's (which never fades, like Classic) — the
+    // "top bar buttons are darker" report. Fading IN fast makes that frame effectively
+    // invisible; fading OUT keeps Classic's relaxed 500ms feel. Steady states are untouched.
+    val m3eControlsAlpha by animateFloatAsState(
+        targetValue = if (state.showControlLayout) 1f else 0f,
+        animationSpec =
+            tween(
+                durationMillis = if (state.showControlLayout) 180 else 500,
+                easing = LinearEasing,
+            ),
+        label = "m3eControlsAlpha",
+    )
+
+    // === 2. Vertical rhythm — identical mechanism to NowPlayingContentSpotify ===
+    // The pre-fold section fills exactly one screen: measured header/artwork/info heights,
+    // and the artwork sits between two equal gaps of `middleLayoutPaddingDp`.
+    var topAppBarHeightDp by rememberSaveable {
+        mutableIntStateOf(0)
+    }
+    var middleLayoutHeightDp by rememberSaveable {
+        mutableIntStateOf(0)
+    }
+    var infoLayoutHeightDp by rememberSaveable {
+        mutableIntStateOf(0)
+    }
+    var middleLayoutPaddingDp by rememberSaveable {
+        mutableIntStateOf(0)
+    }
+    val minimumPaddingDp by rememberSaveable {
+        mutableIntStateOf(
+            30,
+        )
+    }
+    LaunchedEffect(
+        topAppBarHeightDp,
+        // Unlike Classic, the M3E artwork frame CHANGES height (square ↔ the video's shape while
+        // a video plays), so the fold math must re-run when the measured middle height moves too —
+        // without this key the gap keeps the previous track's numbers and the layout drifts.
+        middleLayoutHeightDp,
+        screenInfo,
+        infoLayoutHeightDp,
+        minimumPaddingDp,
+    ) {
+        if (topAppBarHeightDp > 0 && middleLayoutHeightDp > 0 && infoLayoutHeightDp > 0 && screenInfo.hDP > 0) {
+            val result = (screenInfo.hDP - topAppBarHeightDp - middleLayoutHeightDp - infoLayoutHeightDp - minimumPaddingDp) / 2
+            middleLayoutPaddingDp =
+                if (result > minimumPaddingDp) {
+                    result
+                } else {
+                    minimumPaddingDp
+                }
+        }
+    }
+
+    // Video overlay controls (fullscreen / ±5s / subtitles) auto-hide after 3s.
+    var showHideFullscreenOverlay by rememberSaveable {
+        mutableStateOf(false)
+    }
+    LaunchedEffect(key1 = showHideFullscreenOverlay) {
+        if (showHideFullscreenOverlay) {
+            delay(3000)
+            showHideFullscreenOverlay = false
+        }
+    }
+
+    Box {
+        Column(
+            Modifier
+                .verticalScroll(
+                    state.mainScrollState,
+                    enabled = state.isExpanded,
+                )
+                // Tonal design: the page is a plain surface — the artwork card carries the
+                // color. While a canvas is active (showHideMiddleLayout is false exactly
+                // then) the page goes flat black instead, exactly like Classic.
+                .background(if (state.showHideMiddleLayout) colorScheme.surface else Color.Black),
+        ) {
+            Box(modifier = Modifier.fillMaxWidth()) {
+                // === 4. Artwork pager — same state/sync as Classic, card presentation ===
+                // A short window (#13) has no room for the card: the cover joins the title row.
+                if (!state.isShort) HorizontalPager(
+                    state = state.artworkPagerState,
+                    modifier =
+                        Modifier
+                            .height(screenInfo.hDP.dp)
+                            .fillMaxWidth(),
+                    beyondViewportPageCount = 1,
+                    userScrollEnabled = !isRepeatOne && state.artworkQueue.isNotEmpty(),
+                    key = { idx ->
+                        val vid = state.artworkQueue.getOrNull(idx)?.videoId.orEmpty()
+                        "artwork_${vid}_$idx"
+                    },
+                ) { page ->
+                    ExpressiveArtworkCardPage(
+                        state = state,
+                        actions = actions,
+                        page = page,
+                        topAppBarHeightDp = topAppBarHeightDp,
+                        middleLayoutPaddingDp = middleLayoutPaddingDp,
+                        showHideFullscreenOverlay = showHideFullscreenOverlay,
+                        onToggleFullscreenOverlay = {
+                            showHideFullscreenOverlay = !showHideFullscreenOverlay
+                        },
+                    )
+                }
+
+                // === 3. Header row ===
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.TopCenter)
+                            .onGloballyPositioned {
+                                topAppBarHeightDp =
+                                    with(localDensity) {
+                                        it.size.height
+                                            .toDp()
+                                            .value
+                                            .toInt()
+                                    }
+                            }.padding(
+                                top = with(localDensity) { WindowInsets.statusBars.getTop(localDensity).toDp() },
+                            ).padding(top = 8.dp, start = 20.dp, end = 20.dp),
+                ) {
+                    IconButton(
+                        onClick = { actions.onDismiss() },
+                        shape = CircleShape,
+                        colors =
+                            IconButtonDefaults.iconButtonColors(
+                                containerColor = colorScheme.surfaceContainerHigh,
+                                contentColor = colorScheme.onSurface,
+                            ),
+                        modifier = Modifier.size(44.dp),
+                    ) {
+                        Icon(
+                            imageVector = state.dismissIcon,
+                            contentDescription = "",
+                        )
+                    }
+                    // Song | Video takes the middle on a video, or a song with another version, as on Classic.
+                    if (state.canSwitchVersion) {
+                        Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                            VersionSwitch(
+                                isVideo = state.screenData.isVideo && state.shouldShowVideo,
+                                onSwitch = actions.onSwitchVersion,
+                                containerColor = colorScheme.surfaceContainerHigh,
+                            )
+                        }
+                    } else Column(
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .padding(horizontal = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.now_playing_upper),
+                            style = typo().bodyMedium,
+                            color = colorScheme.onSurface,
+                        )
+                        Text(
+                            text = state.screenData.playlistName,
+                            style = typo().labelMedium,
+                            color = colorScheme.onSurface,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .wrapContentHeight(align = Alignment.CenterVertically)
+                                    .basicMarquee(
+                                        iterations = Int.MAX_VALUE,
+                                        animationMode = MarqueeAnimationMode.Immediately,
+                                    ).focusable(),
+                        )
+                    }
+                    IconButton(
+                        onClick = { actions.onShowMoreSheet() },
+                        shape = rounded(14.dp),
+                        colors =
+                            IconButtonDefaults.iconButtonColors(
+                                containerColor = colorScheme.surfaceContainerHigh,
+                                contentColor = colorScheme.onSurface,
+                            ),
+                        modifier = Modifier.size(44.dp),
+                    ) {
+                        Icon(
+                            imageVector = LimusicIcons.MoreVert,
+                            contentDescription = "",
+                        )
+                    }
+                }
+
+                Column {
+                    Spacer(
+                        modifier =
+                            Modifier.height(
+                                topAppBarHeightDp.dp,
+                            ),
+                    )
+                    Column(
+                        Modifier
+                            .fillMaxWidth(),
+                    ) {
+                        if (state.isShort) {
+                            Spacer(Modifier.height(SHORT_GAP))
+                        } else {
+                            Spacer(
+                                modifier =
+                                    Modifier
+                                        .animateContentSize()
+                                        .height(
+                                            middleLayoutPaddingDp.dp,
+                                        ).fillMaxWidth(),
+                            )
+
+                            // The artwork card is rendered by the pager above; reserve the same
+                            // vertical space so the info layout keeps its Y position. Spacer has
+                            // no pointer input so pager swipes fall through. Its ratio MUST match
+                            // the card's slot (the video's shape capped at square while a video
+                            // plays, else square) or the fold math drifts from what the pager
+                            // actually draws — hence the one shared expressiveCardSlotRatio().
+                            Spacer(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 20.dp)
+                                        .onGloballyPositioned { coords ->
+                                            middleLayoutHeightDp =
+                                                with(localDensity) {
+                                                    coords.size.height
+                                                        .toDp()
+                                                        .value
+                                                        .toInt()
+                                                }
+                                        }.aspectRatio(state.expressiveCardSlotRatio()),
+                            )
+
+                            // === 5. Inline current-lyric line, centered in the lower gap ===
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier =
+                                    Modifier
+                                        .animateContentSize()
+                                        .height(
+                                            middleLayoutPaddingDp.dp,
+                                        ).fillMaxWidth(),
+                            ) {
+                                // Wraps to two lines instead of scrolling sideways; word-synced lyrics sweep.
+                                CoverLyricLine(
+                                    state = state,
+                                    style = typo().labelSmall,
+                                    color = colorScheme.onSurface,
+                                    modifier = Modifier.padding(horizontal = 20.dp),
+                                    hidden = state.screenData.fullscreenCanvas() != null,
+                                )
+                            }
+                        }
+
+                        // === 6. Info block ===
+                        Box {
+                            Column(
+                                Modifier
+                                    .alpha(m3eControlsAlpha)
+                                    .onGloballyPositioned {
+                                        infoLayoutHeightDp =
+                                            with(localDensity) {
+                                                it.size.height
+                                                    .toDp()
+                                                    .value
+                                                    .toInt()
+                                            }
+                                    },
+                            ) {
+                                ExpressiveTrackInfoRow(state = state, actions = actions)
+                                if (getPlatform() == Platform.Android) {
+                                    ExpressivePlaybackControls(
+                                        state = state,
+                                        actions = actions,
+                                        sliderModifier =
+                                            Modifier.isElementVisible {
+                                                actions.onToolbarVisibilityChange(!it && state.isExpanded && state.mainScrollState.value > 0)
+                                            },
+                                    )
+                                } else {
+                                    Spacer(Modifier.height(16.dp))
+                                }
+                                Spacer(Modifier.height(12.dp))
+                                ExpressiveConnectedGroup(
+                                    state = state,
+                                    actions = actions,
+                                    onOpenOutput = { showOutputSheet = true },
+                                )
+                            }
+                            // Canvas-unfocused overlay — Classic verbatim: covers the info
+                            // area, a tap re-shows the controls, and the metadata row (plus
+                            // the current lyric line) sits over a black-fading scrim.
+                            this@Column.AnimatedVisibility(
+                                visible = !state.showControlLayout,
+                                enter = fadeIn(),
+                                exit = fadeOut(),
+                            ) {
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .height(
+                                                infoLayoutHeightDp.dp,
+                                            ).fillMaxWidth()
+                                            .clickable(
+                                                onClick = {
+                                                    if (state.mainScrollState.value == 0) {
+                                                        actions.onToggleControls()
+                                                    }
+                                                },
+                                                indication = null,
+                                                interactionSource =
+                                                    remember {
+                                                        MutableInteractionSource()
+                                                    },
+                                            ),
+                                    contentAlignment = Alignment.BottomStart,
+                                ) {
+                                    // Gradient backdrop — transparent at top so the canvas
+                                    // shows through, fading to dark under the metadata row.
+                                    Box(
+                                        modifier =
+                                            Modifier
+                                                .fillMaxSize()
+                                                .background(
+                                                    smoothScrimBrush(
+                                                        from = Color.Black.copy(alpha = 0f),
+                                                        to = Color.Black.copy(alpha = 0.85f),
+                                                    ),
+                                                ),
+                                    )
+
+                                    Column(
+                                        modifier =
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .animateContentSize(),
+                                    ) {
+                                        this@Column.AnimatedVisibility(
+                                            visible = state.currentLyricLineIndex > -1,
+                                            enter = fadeIn() + expandVertically(),
+                                            exit = fadeOut() + shrinkVertically(),
+                                        ) {
+                                            // Canvas subtitle — lyric line above the metadata
+                                            // row. White/yellow kept from Classic: the backdrop
+                                            // is black in both styles.
+                                            val lineText =
+                                                state.screenData.lyricsData
+                                                    ?.lyrics
+                                                    ?.lines
+                                                    ?.getOrNull(state.currentLyricLineIndex)
+                                                    ?.words
+                                                    ?.stripRichSyncTimestamps()
+                                            if (!lineText.isNullOrBlank()) {
+                                                Column(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                ) {
+                                                    LyricText(
+                                                        modifier =
+                                                            Modifier
+                                                                .fillMaxWidth()
+                                                                .padding(horizontal = 20.dp)
+                                                                .padding(bottom = 4.dp),
+                                                        text = lineText,
+                                                        style = typo().bodyMedium,
+                                                        color = Color.White,
+                                                        maxLines = 2,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                    )
+                                                    val translatedLineText =
+                                                        state.screenData.lyricsData
+                                                            ?.translatedLyrics
+                                                            ?.first
+                                                            ?.lines
+                                                            ?.getOrNull(state.currentLyricLineIndex)
+                                                            ?.words
+                                                            ?.stripRichSyncTimestamps()
+                                                    if (!translatedLineText.isNullOrBlank()) {
+                                                        LyricText(
+                                                            modifier =
+                                                                Modifier
+                                                                    .fillMaxWidth()
+                                                                    .padding(horizontal = 20.dp)
+                                                                    .padding(bottom = 8.dp),
+                                                            text = translatedLineText,
+                                                            alignmentText = lineText,
+                                                            style = typo().bodyMedium,
+                                                            color = Color.Yellow,
+                                                            maxLines = 2,
+                                                            overflow = TextOverflow.Ellipsis,
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        ExpressiveTrackInfoRow(state = state, actions = actions)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    // === 7. Below the fold ===
+                    // Starts at the screen's bottom edge: the fold math above leaves its minimum
+                    // padding free down there, and the artist card's photo used to peek into it.
+                    Spacer(
+                        Modifier.height(
+                            if (state.isShort) {
+                                (screenInfo.hDP.dp - topAppBarHeightDp.dp - SHORT_GAP - infoLayoutHeightDp.dp).coerceAtLeast(0.dp)
+                            } else {
+                                (screenInfo.hDP - topAppBarHeightDp - 2 * middleLayoutPaddingDp - middleLayoutHeightDp - infoLayoutHeightDp)
+                                    .coerceAtLeast(0)
+                                    .dp
+                            },
+                        ),
+                    )
+                    ExpressiveBelowTheFold(state = state, actions = actions)
+                }
+            }
+        }
+        // === 8. Collapsed sticky toolbar ===
+        ExpressiveCollapsedToolbar(state = state, actions = actions)
+    }
+
+    if (showOutputSheet) {
+        AudioOutputSheetHost(
+            castState = state.castState,
+            onDismiss = { showOutputSheet = false },
+        )
+    }
+}
+
+/**
+ * Title + artist + the two 48dp tonal circles (YouTube liked, favourite heart).
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+internal fun ExpressiveTrackInfoRow(
+    state: NowPlayingContentState,
+    actions: NowPlayingContentActions,
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    val nowPlaying by koinInject<SharedViewModel>().nowPlayingState.collectAsStateWithLifecycle()
+    // "Artist • Album"; a video or a track without an album shows the artist alone.
+    val artistLine =
+        listOfNotNull(
+            state.screenData.artistName.takeIf { it.isNotBlank() },
+            nowPlaying?.songEntity?.albumName?.takeIf { it.isNotBlank() },
+        ).joinToString(" • ")
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // While a canvas hides the big artwork, a small thumbnail joins the row — Classic
+        // verbatim (its shared NowPlayingTrackInfoRow does exactly this).
+        if (state.isShort) {
+            CoverThumb(state, actions, shape = rounded(12.dp))
+            Spacer(Modifier.width(12.dp))
+        }
+        AnimatedVisibility(state.screenData.fullscreenCanvas() != null && !state.isShort) {
+            AsyncImage(
+                model =
+                    ImageRequest
+                        .Builder(LocalPlatformContext.current)
+                        .data(state.screenData.thumbnailURL)
+                        .diskCachePolicy(CachePolicy.ENABLED)
+                        .crossfade(true)
+                        .build(),
+                placeholder = rememberHolderPainter(),
+                error = rememberHolderPainter(),
+                contentDescription = null,
+                contentScale = ContentScale.FillWidth,
+                modifier =
+                    Modifier
+                        .heightIn(0.dp, 55.dp)
+                        .width(55.dp)
+                        .padding(end = 10.dp)
+                        .clip(
+                            rounded(4.dp),
+                        ).align(Alignment.CenterVertically),
+            )
+        }
+
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = state.screenData.nowPlayingTitle,
+                style = typo().titleMedium,
+                color = colorScheme.onSurface,
+                maxLines = 1,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight(align = Alignment.CenterVertically)
+                        .basicMarquee(
+                            iterations = Int.MAX_VALUE,
+                            animationMode = MarqueeAnimationMode.Immediately,
+                        ).focusable()
+                        .clickable { actions.onNavigateToAlbum() },
+            )
+            Spacer(modifier = Modifier.height(3.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                AnimatedVisibility(visible = state.screenData.isExplicit) {
+                    ExplicitBadge(
+                        modifier =
+                            Modifier
+                                .size(20.dp)
+                                .padding(end = 4.dp),
+                    )
+                }
+                Text(
+                    text = artistLine,
+                    style = typo().bodyMedium,
+                    color = state.secondaryTextColor(),
+                    maxLines = 1,
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .wrapContentHeight(align = Alignment.CenterVertically)
+                            .basicMarquee(
+                                iterations = Int.MAX_VALUE,
+                                animationMode = MarqueeAnimationMode.Immediately,
+                            ).focusable()
+                            .clickable {
+                                actions.onNavigateToArtist()
+                            },
+                )
+            }
+        }
+        Spacer(modifier = Modifier.size(8.dp))
+        val likeBurst = rememberHeartBurstState()
+        FilledIconToggleButton(
+            checked = state.controllerState.isLiked,
+            onCheckedChange = {
+                // Fire on the TAP that likes, never on the state — see HeartBurstState's doc.
+                if (!state.controllerState.isLiked) likeBurst.fire()
+                actions.onUIEvent(UIEvent.ToggleLike)
+            },
+            shape = CircleShape,
+            colors =
+                IconButtonDefaults.filledIconToggleButtonColors(
+                    containerColor = colorScheme.surfaceContainerHigh,
+                    contentColor = colorScheme.onSurfaceVariant,
+                    checkedContainerColor = colorScheme.primaryContainer,
+                    checkedContentColor = colorScheme.onPrimaryContainer,
+                ),
+            // The burst draws outside the 48dp bounds; the button's own shape clip is internal
+            // (on its Surface), so sparks fired from this outer modifier are not trimmed.
+            modifier = Modifier.size(48.dp).heartBurst(likeBurst),
+        ) {
+            Crossfade(targetState = state.controllerState.isLiked) { liked ->
+                Icon(
+                    imageVector = if (liked) LimusicIcons.Favorite else LimusicIcons.FavoriteBorder,
+                    contentDescription = "",
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Wavy seek bar + time row + transport — the playback half of the info block. Must be composed
+ * inside [NowPlayingExpressiveTheme]. Emits
+ * straight into the caller's Column: isElementVisible (passed in through [sliderModifier]) compares
+ * the seek bar against its PARENT layout, so a wrapper here would change what it compares against.
+ */
+@Composable
+internal fun ColumnScope.ExpressivePlaybackControls(
+    state: NowPlayingContentState,
+    actions: NowPlayingContentActions,
+    sliderModifier: Modifier = Modifier,
+    showShuffleAndRepeat: Boolean = false,
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    Box(
+        Modifier
+            .padding(
+                top = 15.dp,
+            ).padding(horizontal = 20.dp)
+            .then(sliderModifier),
+    ) {
+        WavySeekBar(
+            progressFraction = state.sliderValue / 100f,
+            isPlaying = state.controllerState.isPlaying,
+            activeColor = colorScheme.primary,
+            trackColor = colorScheme.secondaryContainer,
+            thumbColor = colorScheme.primary,
+            onSliderChange = actions.onSliderChange,
+            onSliderChangeFinished = actions.onSliderChangeFinished,
+        )
+    }
+    // Time row — same math and negative guard as Classic
+    // (formatDuration renders any negative as NA:NA).
+    Row(
+        Modifier
+            .fillMaxWidth()
+            // Drawn 8dp closer to the wave without shrinking the
+            // seekbar's 40dp touch target or moving the layout slot:
+            // the same 8dp visually opens the gap to the transport
+            // row below (owner: times sat too far from the slider,
+            // too close to the controls).
+            .offset(y = (-8).dp)
+            .padding(horizontal = 20.dp),
+    ) {
+        Text(
+            text = state.timelineState.elapsedLabel(state.sliderValue / 100f),
+            style = typo().bodyMedium,
+            color = state.secondaryTextColor(),
+            modifier = Modifier.weight(1f),
+            textAlign = TextAlign.Left,
+        )
+        // Sweep head for the "Crossfading" shimmer, 0..1. Runs
+        // unconditionally: behind the crossfade check it would
+        // restart from zero each time the label appears (same
+        // rationale as the desktop MiniPlayer's crossfadeSweep).
+        val sweepTransition = rememberInfiniteTransition(label = "m3eCrossfadeSweep")
+        val crossfadeSweep by sweepTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec =
+                infiniteRepeatable(
+                    animation = tween(3200, easing = LinearEasing),
+                    repeatMode = RepeatMode.Restart,
+                ),
+            label = "m3eSweepHead",
+        )
+        AnimatedVisibility(
+            enter = fadeIn(),
+            exit = fadeOut(),
+            visible = state.timelineState.isCrossfading,
+        ) {
+            // Same effect as the desktop MiniPlayer label: a
+            // highlight sweeping through the glyphs via a text
+            // brush — no overlay, no clipping.
+            val shimmerSpan = 140f
+            val shimmerHead = crossfadeSweep * (shimmerSpan * 3f) - shimmerSpan
+            val labelColor = typo().bodyMedium.color
+            Text(
+                text = stringResource(Res.string.crossfading),
+                style =
+                    typo().bodyMedium.copy(
+                        brush =
+                            Brush.horizontalGradient(
+                                0f to labelColor.copy(alpha = 0.45f),
+                                // The sweep head is PURE white (black on light), not the resting label
+                                // colour: the label is an adaptive grey, and a grey gleam reads as none.
+                                0.5f to if (LocalIsDarkTheme.current) Color.White else Color.Black,
+                                1f to labelColor.copy(alpha = 0.45f),
+                                startX = shimmerHead,
+                                endX = shimmerHead + shimmerSpan,
+                                tileMode = TileMode.Clamp,
+                            ),
+                    ),
+                textAlign = TextAlign.Center,
+            )
+        }
+        Text(
+            text = state.timelineState.lengthLabel(),
+            style = typo().bodyMedium,
+            color = state.secondaryTextColor(),
+            modifier = Modifier.weight(1f),
+            textAlign = TextAlign.Right,
+        )
+    }
+    Spacer(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .height(8.dp),
+    )
+    ExpressiveTransportRow(
+        controllerState = state.controllerState,
+        loading = state.timelineState.loading,
+        onUIEvent = actions.onUIEvent,
+        modifier = Modifier.padding(horizontal = 20.dp),
+        showShuffleAndRepeat = showShuffleAndRepeat,
+    )
+}
+
+/**
+ * Connected button group: six 48dp slots with 3dp gaps and rounded end caps —
+ * Info | Output | Shuffle | Repeat | Add-to-playlist | Queue.
+ */
+@Composable
+private fun ExpressiveConnectedGroup(
+    state: NowPlayingContentState,
+    actions: NowPlayingContentActions,
+    onOpenOutput: () -> Unit,
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    val startCap = rounded(topStart = 24.dp, topEnd = 6.dp, bottomEnd = 6.dp, bottomStart = 24.dp)
+    val endCap = rounded(topStart = 6.dp, topEnd = 24.dp, bottomEnd = 24.dp, bottomStart = 6.dp)
+    val middle = rounded(6.dp)
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .height(48.dp),
+    ) {
+        ExpressiveConnectedSlot(
+            shape = startCap,
+            onClick = { actions.onShowInfo() },
+        ) {
+            Icon(
+                imageVector = LimusicIcons.Info,
+                contentDescription = "",
+                tint = colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(22.dp),
+            )
+        }
+        // Output — the phone's own outputs and the Cast receivers in one sheet, the same one the
+        // Immersive style opens. Every build has outputs to pick, so the slot is never hidden.
+        // An active Cast session tints primary, like Classic's cyan.
+        ExpressiveConnectedSlot(
+            shape = middle,
+            onClick = onOpenOutput,
+        ) {
+            Icon(
+                imageVector = LimusicIcons.Headphones,
+                contentDescription = stringResource(Res.string.audio_output),
+                tint = if (state.castState.isRemote) colorScheme.primary else colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(22.dp),
+            )
+        }
+        ExpressiveConnectedSlot(
+            shape = middle,
+            active = state.controllerState.isShuffle,
+            onClick = { actions.onUIEvent(UIEvent.Shuffle) },
+        ) {
+            Crossfade(targetState = state.controllerState.isShuffle, label = "expressiveShuffle") { isShuffle ->
+                Icon(
+                    imageVector = LimusicIcons.Shuffle,
+                    contentDescription = "",
+                    tint = if (isShuffle) colorScheme.onPrimaryContainer else colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+        }
+        ExpressiveConnectedSlot(
+            shape = middle,
+            active = state.controllerState.repeatState !is RepeatState.None,
+            onClick = { actions.onUIEvent(UIEvent.Repeat) },
+        ) {
+            Crossfade(targetState = state.controllerState.repeatState, label = "expressiveRepeat") { rs ->
+                when (rs) {
+                    is RepeatState.None -> {
+                        Icon(
+                            imageVector = LimusicIcons.Repeat,
+                            contentDescription = "",
+                            tint = colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+
+                    RepeatState.All -> {
+                        Icon(
+                            imageVector = LimusicIcons.Repeat,
+                            contentDescription = "",
+                            tint = colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+
+                    RepeatState.One -> {
+                        Icon(
+                            imageVector = LimusicIcons.RepeatOne,
+                            contentDescription = "",
+                            tint = colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                }
+            }
+        }
+        ExpressiveConnectedSlot(
+            shape = middle,
+            onClick = { actions.onShowAddToPlaylist() },
+        ) {
+            Icon(
+                imageVector = LimusicIcons.PlaylistAdd,
+                contentDescription = "Add to Playlist",
+                tint = colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(22.dp),
+            )
+        }
+        ExpressiveConnectedSlot(
+            shape = endCap,
+            onClick = { actions.onShowQueue() },
+        ) {
+            Icon(
+                imageVector = LimusicIcons.QueueMusic,
+                contentDescription = "",
+                tint = colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(22.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun RowScope.ExpressiveConnectedSlot(
+    shape: Shape,
+    onClick: (() -> Unit)?,
+    active: Boolean = false,
+    content: @Composable () -> Unit,
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    val container = if (active) colorScheme.primaryContainer else colorScheme.surfaceContainerHigh
+    if (onClick != null) {
+        Surface(
+            onClick = onClick,
+            shape = shape,
+            color = container,
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+        ) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                content()
+            }
+        }
+    } else {
+        Surface(
+            shape = shape,
+            color = container,
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+        ) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                content()
+            }
+        }
+    }
+}
