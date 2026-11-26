@@ -45,7 +45,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -193,6 +195,26 @@ fun HomeScreen(
             if (title != null) {
                 item { HomeTitle(title, replayYear) }
             }
+            // The chip strip from Sur's home, under the title: All, then the
+            // moods, each chip the same circle upstream draws.
+            item(key = "chips") {
+                var chipIndex by rememberSaveable { mutableIntStateOf(0) }
+                val moods = remember { TopPickMood.entries }
+                SurChipStrip(
+                    chips = listOf("All") + moods.map { mood ->
+                        mood.name.lowercase().replace('_', ' ')
+                            .replaceFirstChar { it.uppercase() }
+                    },
+                    selectedIndex = chipIndex,
+                    onSelect = { index ->
+                        chipIndex = index
+                        if (index > 0) {
+                            val mood = moods[index - 1]
+                            onMoodClick?.invoke(mood, mood.name)
+                        }
+                    },
+                )
+            }
             if (!signedIn && onSignIn != null) {
                 item {
                     // Read in this item, so a scroll starting or ending
@@ -278,12 +300,19 @@ private fun androidx.compose.foundation.lazy.LazyListScope.itemsIndexedShelves(
             // Sur's home, ported: a heading with its strapline, then a row of
             // 148dp cards — every shelf, including the ones the web player
             // draws as lists.
-            SurShelfRow(
-                shelf = shelf,
-                shelfIndex = index,
-                onItemClick = openItem,
-                onItemLongPress = onItemLongPress,
-            )
+            // Quick picks is upstream's four-row grid, not a card row — Sur
+            // draws that one shelf differently and so does this.
+            if (shelf.title.contains("quick pick", ignoreCase = true)) {
+                SurQuickPicks(items = shelf.items, onItemClick = openItem)
+                Spacer(Modifier.height(8.dp))
+            } else {
+                SurShelfRow(
+                    shelf = shelf,
+                    shelfIndex = index,
+                    onItemClick = openItem,
+                    onItemLongPress = onItemLongPress,
+                )
+            }
         }
     }
 }
