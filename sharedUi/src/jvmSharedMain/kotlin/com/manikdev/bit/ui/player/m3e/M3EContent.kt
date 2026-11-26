@@ -498,7 +498,7 @@ private fun M3EWavySeekBar(
             val stroke = 6.dp.toPx()
             val waveLength = 42.dp.toPx()
             val waveHeight = 5.dp.toPx() * amplitude
-            val phase = wavePhase.value
+            val phase = wavePhase
             val progressX = size.width * displayedFraction
 
             // The track under the whole bar.
